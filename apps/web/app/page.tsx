@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   ArrowRight,
   Terminal,
@@ -14,7 +14,11 @@ import {
   Sparkles,
   ChevronRight,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { springs, fadeUp, staggerContainer, fadeScale } from "@/components/motion";
+import { useScrollReveal, staggerDelay } from "@/lib/hooks/useScrollReveal";
+import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 
 // Animated terminal lines
 const TERMINAL_LINES = [
@@ -31,12 +35,13 @@ const TERMINAL_LINES = [
 function AnimatedTerminal() {
   const [visibleLines, setVisibleLines] = useState(0);
   const [cursorVisible, setCursorVisible] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     const interval = setInterval(() => {
       setVisibleLines((prev) => {
         if (prev >= TERMINAL_LINES.length) {
-          return 1; // Reset to loop (keep first line visible to avoid blank frame)
+          return 1; // Reset to loop
         }
         return prev + 1;
       });
@@ -53,7 +58,12 @@ function AnimatedTerminal() {
   }, []);
 
   return (
-    <div className="terminal-window animate-scale-in shadow-2xl">
+    <motion.div
+      className="terminal-window shadow-2xl"
+      initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={springs.smooth}
+    >
       <div className="terminal-header">
         <div className="terminal-dot terminal-dot-red" />
         <div className="terminal-dot terminal-dot-yellow" />
@@ -63,36 +73,42 @@ function AnimatedTerminal() {
         </span>
       </div>
       <div className="terminal-content min-h-[280px]">
-        {TERMINAL_LINES.slice(0, visibleLines).map((line, i) => (
-          <div
-            key={i}
-            className={`terminal-line mb-2 opacity-0 animate-slide-up`}
-            style={{ animationDelay: `${i * 0.1}s`, animationFillMode: "forwards" }}
-          >
-            {line.type === "command" && (
-              <>
-                <span className="terminal-prompt">$</span>
-                <span className="terminal-command">{line.text}</span>
-              </>
-            )}
-            {line.type === "output" && (
-              <span className="terminal-output">{line.text}</span>
-            )}
-            {line.type === "success" && (
-              <span className="text-[oklch(0.72_0.19_145)]">{line.text}</span>
-            )}
-          </div>
-        ))}
+        <AnimatePresence mode="popLayout">
+          {TERMINAL_LINES.slice(0, visibleLines).map((line, i) => (
+            <motion.div
+              key={`${line.text}-${i}`}
+              className="terminal-line mb-2"
+              initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ ...springs.snappy, delay: i * 0.05 }}
+            >
+              {line.type === "command" && (
+                <>
+                  <span className="terminal-prompt">$</span>
+                  <span className="terminal-command">{line.text}</span>
+                </>
+              )}
+              {line.type === "output" && (
+                <span className="terminal-output">{line.text}</span>
+              )}
+              {line.type === "success" && (
+                <span className="text-[oklch(0.72_0.19_145)]">{line.text}</span>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
         {visibleLines <= TERMINAL_LINES.length && (
           <div className="terminal-line">
             <span className="terminal-prompt">$</span>
-            <span
-              className={`terminal-cursor ${cursorVisible ? "opacity-100" : "opacity-0"}`}
+            <motion.span
+              className="terminal-cursor"
+              animate={{ opacity: cursorVisible ? 1 : 0 }}
+              transition={{ duration: 0.1 }}
             />
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -101,28 +117,263 @@ interface FeatureCardProps {
   title: string;
   description: string;
   gradient: string;
-  delay: number;
+  index: number;
 }
 
-function FeatureCard({ icon, title, description, gradient, delay }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, gradient, index }: FeatureCardProps) {
   return (
-    <div
-      className={`group relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 card-hover opacity-0 animate-slide-up`}
-      style={{ animationDelay: `${delay}s`, animationFillMode: "forwards" }}
+    <motion.div
+      className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm transition-colors duration-300 hover:border-primary/30"
+      variants={fadeUp}
+      whileHover={{ y: -4, boxShadow: "0 20px 40px -12px oklch(0.75 0.18 195 / 0.15)" }}
+      transition={{ ...springs.snappy, delay: staggerDelay(index, 0.08) }}
     >
       {/* Gradient glow on hover */}
-      <div
-        className={`absolute -right-20 -top-20 h-40 w-40 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-30 ${gradient}`}
+      <motion.div
+        className={`absolute -right-20 -top-20 h-40 w-40 rounded-full blur-3xl ${gradient}`}
+        initial={{ opacity: 0 }}
+        whileHover={{ opacity: 0.3 }}
+        transition={springs.smooth}
       />
 
       <div className="relative z-10">
-        <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary">
+        <motion.div
+          className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary"
+          whileHover={{ scale: 1.1, rotate: 5 }}
+          transition={springs.snappy}
+        >
           {icon}
-        </div>
+        </motion.div>
         <h3 className="mb-2 text-lg font-semibold tracking-tight">{title}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+const FEATURES = [
+  {
+    icon: <Rocket className="h-6 w-6" />,
+    title: "One-liner Install",
+    description: "A single command transforms your VPS. No manual configuration, no dependency hell.",
+    gradient: "bg-[oklch(0.75_0.18_195)]",
+  },
+  {
+    icon: <Cpu className="h-6 w-6" />,
+    title: "Three AI Agents",
+    description: "Claude Code, Codex CLI, and Gemini CLI — all configured with optimal settings for coding.",
+    gradient: "bg-[oklch(0.7_0.2_330)]",
+  },
+  {
+    icon: <ShieldCheck className="h-6 w-6" />,
+    title: "Idempotent & Safe",
+    description: "Re-run anytime. Checkpointed phases resume on failure. SHA256 verified installers.",
+    gradient: "bg-[oklch(0.72_0.19_145)]",
+  },
+  {
+    icon: <Zap className="h-6 w-6" />,
+    title: "Vibe Mode",
+    description: "Passwordless sudo, dangerous flags enabled — maximum velocity for throwaway VPS environments.",
+    gradient: "bg-[oklch(0.78_0.16_75)]",
+  },
+  {
+    icon: <Terminal className="h-6 w-6" />,
+    title: "Modern Shell",
+    description: "zsh + oh-my-zsh + powerlevel10k with lsd, atuin, fzf, zoxide — developer UX perfected.",
+    gradient: "bg-[oklch(0.65_0.18_290)]",
+  },
+  {
+    icon: <Clock className="h-6 w-6" />,
+    title: "Interactive Tutorial",
+    description: "Run 'onboard' after setup for guided lessons from Linux basics to full agentic workflows.",
+    gradient: "bg-[oklch(0.75_0.18_195)]",
+  },
+];
+
+function FeaturesSection() {
+  const { ref, isInView } = useScrollReveal({ threshold: 0.1 });
+
+  return (
+    <section ref={ref as React.RefObject<HTMLElement>} className="mx-auto max-w-7xl px-6 py-24">
+      <motion.div
+        className="mb-12 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+        transition={springs.smooth}
+      >
+        <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight">
+          Everything You Need
+        </h2>
+        <p className="mx-auto max-w-2xl text-muted-foreground">
+          A single curl command installs and configures your complete agentic coding environment
+        </p>
+      </motion.div>
+
+      <motion.div
+        className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        variants={staggerContainer}
+        initial="hidden"
+        animate={isInView ? "visible" : "hidden"}
+      >
+        {FEATURES.map((feature, i) => (
+          <FeatureCard key={feature.title} {...feature} index={i} />
+        ))}
+      </motion.div>
+    </section>
+  );
+}
+
+const FLYWHEEL_TOOLS = [
+  { name: "NTM", color: "from-sky-400 to-blue-500", desc: "Agent Orchestration" },
+  { name: "Mail", color: "from-violet-400 to-purple-500", desc: "Coordination" },
+  { name: "UBS", color: "from-rose-400 to-red-500", desc: "Bug Scanning" },
+  { name: "BV", color: "from-emerald-400 to-teal-500", desc: "Task Graph" },
+  { name: "CASS", color: "from-cyan-400 to-sky-500", desc: "Search" },
+  { name: "CM", color: "from-pink-400 to-fuchsia-500", desc: "Memory" },
+  { name: "CAAM", color: "from-amber-400 to-orange-500", desc: "Auth" },
+  { name: "SLB", color: "from-yellow-400 to-amber-500", desc: "Safety" },
+];
+
+function FlywheelSection() {
+  const { ref, isInView } = useScrollReveal({ threshold: 0.1 });
+
+  return (
+    <section ref={ref as React.RefObject<HTMLElement>} className="border-t border-border/30 bg-card/20 py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <motion.div
+          className="mb-12 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={springs.smooth}
+        >
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
+            <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
+          </div>
+          <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight">
+            The Agentic Coding Flywheel
+          </h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            Eight interconnected tools that transform multi-agent workflows. Each tool enhances the others.
+          </p>
+        </motion.div>
+
+        {/* Tool preview grid */}
+        <motion.div
+          className="grid grid-cols-4 sm:grid-cols-8 gap-4 mb-8"
+          variants={staggerContainer}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
+          {FLYWHEEL_TOOLS.map((tool, i) => (
+            <motion.div
+              key={tool.name}
+              className="flex flex-col items-center gap-2"
+              variants={fadeScale}
+              transition={{ delay: staggerDelay(i, 0.06) }}
+              whileHover={{ scale: 1.1, y: -4 }}
+            >
+              <motion.div
+                className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${tool.color} shadow-lg`}
+                whileHover={{ rotate: [0, -5, 5, 0] }}
+                transition={{ duration: 0.4 }}
+              >
+                <span className="text-xs font-bold text-white">{tool.name}</span>
+              </motion.div>
+              <span className="text-[10px] text-muted-foreground text-center">{tool.desc}</span>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div
+          className="flex justify-center"
+          initial={{ opacity: 0, y: 10 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ ...springs.smooth, delay: 0.5 }}
+        >
+          <Button asChild size="lg" variant="outline" className="border-primary/30 hover:bg-primary/10">
+            <Link href="/flywheel">
+              Explore the Flywheel
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+const WORKFLOW_STEPS = [
+  "Choose OS",
+  "Install Terminal",
+  "Generate SSH Key",
+  "Rent VPS",
+  "Create Instance",
+  "SSH Connect",
+  "Run Installer",
+  "Reconnect",
+  "Status Check",
+  "Launch Onboard",
+];
+
+function WorkflowStepsSection() {
+  const { ref, isInView } = useScrollReveal({ threshold: 0.1 });
+
+  return (
+    <section ref={ref as React.RefObject<HTMLElement>} className="border-t border-border/30 bg-card/30 py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <motion.div
+          className="mb-12 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={springs.smooth}
+        >
+          <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight">
+            10 Steps to Liftoff
+          </h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            The wizard guides you from &quot;I have a laptop&quot; to &quot;AI agents are coding for me&quot;
+          </p>
+        </motion.div>
+
+        <motion.div
+          className="flex flex-wrap justify-center gap-3"
+          variants={staggerContainer}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
+          {WORKFLOW_STEPS.map((step, i) => (
+            <motion.div
+              key={step}
+              className="flex items-center gap-2 rounded-full border border-border/50 bg-card/50 px-4 py-2 text-sm transition-colors hover:border-primary/30 hover:bg-card"
+              variants={fadeUp}
+              transition={{ delay: staggerDelay(i, 0.05) }}
+              whileHover={{ scale: 1.05, y: -2 }}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                {i + 1}
+              </span>
+              <span className="text-foreground">{step}</span>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div
+          className="mt-12 flex justify-center"
+          initial={{ opacity: 0, y: 10 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ ...springs.smooth, delay: 0.6 }}
+        >
+          <Button asChild size="lg" className="bg-primary text-primary-foreground">
+            <Link href="/wizard/os-selection">
+              Start Your Journey
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </motion.div>
+      </div>
+    </section>
   );
 }
 
@@ -288,164 +539,13 @@ export default function HomePage() {
         </section>
 
         {/* Features Grid */}
-        <section className="mx-auto max-w-7xl px-6 py-24">
-          <div className="mb-12 text-center">
-            <h2
-              className="mb-4 font-mono text-3xl font-bold tracking-tight opacity-0 animate-slide-up"
-              style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
-            >
-              Everything You Need
-            </h2>
-            <p
-              className="mx-auto max-w-2xl text-muted-foreground opacity-0 animate-slide-up"
-              style={{ animationDelay: "0.7s", animationFillMode: "forwards" }}
-            >
-              A single curl command installs and configures your complete agentic coding environment
-            </p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard
-              icon={<Rocket className="h-6 w-6" />}
-              title="One-liner Install"
-              description="A single command transforms your VPS. No manual configuration, no dependency hell."
-              gradient="bg-[oklch(0.75_0.18_195)]"
-              delay={0.8}
-            />
-            <FeatureCard
-              icon={<Cpu className="h-6 w-6" />}
-              title="Three AI Agents"
-              description="Claude Code, Codex CLI, and Gemini CLI — all configured with optimal settings for coding."
-              gradient="bg-[oklch(0.7_0.2_330)]"
-              delay={0.9}
-            />
-            <FeatureCard
-              icon={<ShieldCheck className="h-6 w-6" />}
-              title="Idempotent & Safe"
-              description="Re-run anytime. Checkpointed phases resume on failure. SHA256 verified installers."
-              gradient="bg-[oklch(0.72_0.19_145)]"
-              delay={1.0}
-            />
-            <FeatureCard
-              icon={<Zap className="h-6 w-6" />}
-              title="Vibe Mode"
-              description="Passwordless sudo, dangerous flags enabled — maximum velocity for throwaway VPS environments."
-              gradient="bg-[oklch(0.78_0.16_75)]"
-              delay={1.1}
-            />
-            <FeatureCard
-              icon={<Terminal className="h-6 w-6" />}
-              title="Modern Shell"
-              description="zsh + oh-my-zsh + powerlevel10k with lsd, atuin, fzf, zoxide — developer UX perfected."
-              gradient="bg-[oklch(0.65_0.18_290)]"
-              delay={1.2}
-            />
-            <FeatureCard
-              icon={<Clock className="h-6 w-6" />}
-              title="Interactive Tutorial"
-              description="Run 'onboard' after setup for guided lessons from Linux basics to full agentic workflows."
-              gradient="bg-[oklch(0.75_0.18_195)]"
-              delay={1.3}
-            />
-          </div>
-        </section>
+        <FeaturesSection />
 
         {/* Flywheel Teaser */}
-        <section className="border-t border-border/30 bg-card/20 py-24">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="mb-12 text-center">
-              <div className="mb-4 flex items-center justify-center gap-3">
-                <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">Ecosystem</span>
-                <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
-              </div>
-              <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight">
-                The Agentic Coding Flywheel
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                Eight interconnected tools that transform multi-agent workflows. Each tool enhances the others.
-              </p>
-            </div>
-
-            {/* Tool preview grid */}
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-4 mb-8">
-              {[
-                { name: "NTM", color: "from-sky-400 to-blue-500", desc: "Agent Orchestration" },
-                { name: "Mail", color: "from-violet-400 to-purple-500", desc: "Coordination" },
-                { name: "UBS", color: "from-rose-400 to-red-500", desc: "Bug Scanning" },
-                { name: "BV", color: "from-emerald-400 to-teal-500", desc: "Task Graph" },
-                { name: "CASS", color: "from-cyan-400 to-sky-500", desc: "Search" },
-                { name: "CM", color: "from-pink-400 to-fuchsia-500", desc: "Memory" },
-                { name: "CAAM", color: "from-amber-400 to-orange-500", desc: "Auth" },
-                { name: "SLB", color: "from-yellow-400 to-amber-500", desc: "Safety" },
-              ].map((tool, i) => (
-                <div key={tool.name} className="flex flex-col items-center gap-2 opacity-0 animate-slide-up" style={{ animationDelay: `${1.4 + i * 0.1}s`, animationFillMode: "forwards" }}>
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${tool.color} shadow-lg`}>
-                    <span className="text-xs font-bold text-white">{tool.name}</span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground text-center">{tool.desc}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-center">
-              <Button asChild size="lg" variant="outline" className="border-primary/30 hover:bg-primary/10">
-                <Link href="/flywheel">
-                  Explore the Flywheel
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+        <FlywheelSection />
 
         {/* Workflow Steps Preview */}
-        <section className="border-t border-border/30 bg-card/30 py-24">
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="mb-12 text-center">
-              <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight">
-                10 Steps to Liftoff
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                The wizard guides you from &quot;I have a laptop&quot; to &quot;AI agents are coding for me&quot;
-              </p>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-3">
-              {[
-                "Choose OS",
-                "Install Terminal",
-                "Generate SSH Key",
-                "Rent VPS",
-                "Create Instance",
-                "SSH Connect",
-                "Run Installer",
-                "Reconnect",
-                "Status Check",
-                "Launch Onboard",
-              ].map((step, i) => (
-                <div
-                  key={step}
-                  className="flex items-center gap-2 rounded-full border border-border/50 bg-card/50 px-4 py-2 text-sm transition-all hover:border-primary/30 hover:bg-card"
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                    {i + 1}
-                  </span>
-                  <span className="text-foreground">{step}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-12 flex justify-center">
-              <Button asChild size="lg" className="bg-primary text-primary-foreground">
-                <Link href="/wizard/os-selection">
-                  Start Your Journey
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+        <WorkflowStepsSection />
 
         {/* Footer */}
         <footer className="border-t border-border/30 py-12">
