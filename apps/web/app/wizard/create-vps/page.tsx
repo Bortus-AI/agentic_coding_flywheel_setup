@@ -98,25 +98,17 @@ const PROVIDER_GUIDES = [
   },
 ];
 
-interface FormValues {
-  checklist: Record<ChecklistItemId, boolean>;
-  ipAddress: string;
-}
-
 export default function CreateVPSPage() {
   const router = useRouter();
   const [storedIP, setStoredIP] = useVPSIP();
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const form = useForm<FormValues>({
+  // Track checklist state locally for simpler form handling
+  const [checkedItems, setCheckedItems] = useState<Set<ChecklistItemId>>(new Set());
+
+  const form = useForm({
     defaultValues: {
-      checklist: {
-        ubuntu: false,
-        ssh: false,
-        created: false,
-        "copied-ip": false,
-      },
       ipAddress: storedIP ?? "",
     },
     onSubmit: async ({ value }) => {
@@ -127,20 +119,19 @@ export default function CreateVPSPage() {
     },
   });
 
-  // Subscribe to form state for UI updates
-  const formState = form.useStore((state) => ({
-    checklist: state.values.checklist,
-    ipAddress: state.values.ipAddress,
-    isSubmitting: state.isSubmitting,
-  }));
+  const handleCheckItem = (itemId: ChecklistItemId, checked: boolean) => {
+    setCheckedItems((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(itemId);
+      } else {
+        next.delete(itemId);
+      }
+      return next;
+    });
+  };
 
-  const allChecked = CHECKLIST_ITEMS.every(
-    (item) => formState.checklist[item.id]
-  );
-  const ipValue = formState.ipAddress;
-  const ipIsValid = ipValue && isValidIP(ipValue);
-  const ipHasError = ipValue && !isValidIP(ipValue);
-  const canContinue = allChecked && ipIsValid && !isNavigating;
+  const allChecked = CHECKLIST_ITEMS.every((item) => checkedItems.has(item.id));
 
   return (
     <div className="space-y-8">
@@ -180,31 +171,27 @@ export default function CreateVPSPage() {
           </h2>
           <div className="space-y-3">
             {CHECKLIST_ITEMS.map((item) => (
-              <form.Field
+              <label
                 key={item.id}
-                name={`checklist.${item.id}` as `checklist.${ChecklistItemId}`}
+                className="flex cursor-pointer items-center gap-3"
               >
-                {(field) => (
-                  <label className="flex cursor-pointer items-center gap-3">
-                    <Checkbox
-                      checked={field.state.value}
-                      onCheckedChange={(checked) =>
-                        field.handleChange(checked === true)
-                      }
-                    />
-                    <span
-                      className={cn(
-                        "text-sm transition-all",
-                        field.state.value
-                          ? "text-muted-foreground line-through"
-                          : "text-foreground"
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </label>
-                )}
-              </form.Field>
+                <Checkbox
+                  checked={checkedItems.has(item.id)}
+                  onCheckedChange={(checked) =>
+                    handleCheckItem(item.id, checked === true)
+                  }
+                />
+                <span
+                  className={cn(
+                    "text-sm transition-all",
+                    checkedItems.has(item.id)
+                      ? "text-muted-foreground line-through"
+                      : "text-foreground"
+                  )}
+                >
+                  {item.label}
+                </span>
+              </label>
             ))}
           </div>
         </div>
@@ -255,50 +242,54 @@ export default function CreateVPSPage() {
               },
             }}
           >
-            {(field) => (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  placeholder="e.g., 192.168.1.100"
-                  className={cn(
-                    "w-full rounded-xl border bg-background px-4 py-3 font-mono text-sm outline-none transition-all",
-                    "focus:border-primary focus:ring-2 focus:ring-primary/20",
-                    field.state.meta.errors.length > 0
-                      ? "border-destructive focus:border-destructive focus:ring-destructive/20"
-                      : "border-border/50"
+            {(field) => {
+              const hasErrors = field.state.meta.errors.length > 0;
+              const isValid = field.state.value && !hasErrors && isValidIP(field.state.value);
+              const canSubmit = allChecked && isValid && !isNavigating;
+
+              return (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="e.g., 192.168.1.100"
+                    className={cn(
+                      "w-full rounded-xl border bg-background px-4 py-3 font-mono text-sm outline-none transition-all",
+                      "focus:border-primary focus:ring-2 focus:ring-primary/20",
+                      hasErrors
+                        ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                        : "border-border/50"
+                    )}
+                  />
+                  {hasErrors && (
+                    <p className="flex items-center gap-1 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {field.state.meta.errors[0]}
+                    </p>
                   )}
-                />
-                {field.state.meta.errors.length > 0 && (
-                  <p className="flex items-center gap-1 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    {field.state.meta.errors[0]}
-                  </p>
-                )}
-                {field.state.value &&
-                  field.state.meta.errors.length === 0 &&
-                  isValidIP(field.state.value) && (
+                  {isValid && (
                     <p className="flex items-center gap-1 text-sm text-[oklch(0.72_0.19_145)]">
                       <Check className="h-4 w-4" />
                       Valid IP address
                     </p>
                   )}
-              </div>
-            )}
-          </form.Field>
-        </div>
 
-        {/* Continue button */}
-        <div className="flex justify-end pt-4">
-          <Button
-            type="submit"
-            disabled={!canContinue || formState.isSubmitting}
-            size="lg"
-          >
-            {isNavigating || formState.isSubmitting ? "Loading..." : "Continue to SSH"}
-          </Button>
+                  {/* Continue button - rendered inside field for access to validation state */}
+                  <div className="flex justify-end pt-6">
+                    <Button
+                      type="submit"
+                      disabled={!canSubmit}
+                      size="lg"
+                    >
+                      {isNavigating ? "Loading..." : "Continue to SSH"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            }}
+          </form.Field>
         </div>
       </form>
     </div>
