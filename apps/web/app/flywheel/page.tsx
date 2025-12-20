@@ -269,7 +269,7 @@ function WorkflowSection() {
         <div className="mb-12 max-w-3xl">
           <div className="mb-4 flex items-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-primary">
               Real Workflows
             </span>
           </div>
@@ -379,7 +379,7 @@ function PromptsSection() {
         <div className="mb-12 max-w-3xl">
           <div className="mb-4 flex items-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-primary">
               Battle-Tested Prompts
             </span>
           </div>
@@ -415,7 +415,7 @@ function SynergySection() {
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-primary">
               The Flywheel Effect
             </span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
@@ -585,7 +585,7 @@ function ToolsSection() {
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-primary">
               The Complete Stack
             </span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
@@ -648,7 +648,7 @@ function PhilosophySection() {
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-primary">
               Design Philosophy
             </span>
             <div className="h-px w-8 bg-gradient-to-l from-transparent via-primary/50 to-transparent" />
