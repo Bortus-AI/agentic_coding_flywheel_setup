@@ -1,0 +1,287 @@
+# ACFS Module Manifest
+# Single source of truth for all tools installed by the Agentic Coding Flywheel Setup
+# Version: 0.1.0
+
+version: 1
+name: agentic_coding_flywheel_setup
+id: acfs
+
+defaults:
+  user: ubuntu
+  workspace_root: /data/projects
+  mode: vibe
+
+modules:
+  # ============================================================
+  # PHASE 1: Base system packages
+  # ============================================================
+  - id: base.system
+    description: Base packages + sane defaults
+    install:
+      - sudo apt-get update -y
+      - sudo apt-get install -y curl git ca-certificates unzip tar xz-utils jq build-essential
+    verify:
+      - curl --version
+      - git --version
+      - jq --version
+
+  # ============================================================
+  # PHASE 2: User normalization
+  # ============================================================
+  - id: users.ubuntu
+    description: Ensure ubuntu user + passwordless sudo + ssh keys
+    install:
+      - "Ensure user ubuntu exists with home /home/ubuntu"
+      - "Write /etc/sudoers.d/90-ubuntu-acfs: ubuntu ALL=(ALL) NOPASSWD:ALL"
+      - "Copy authorized_keys from invoking user to /home/ubuntu/.ssh/"
+    verify:
+      - id ubuntu
+      - sudo -n true
+
+  # ============================================================
+  # PHASE 3: Shell luxury mode
+  # ============================================================
+  - id: shell.zsh
+    description: Zsh + Oh My Zsh + Powerlevel10k + plugins + canonical ACFS zshrc
+    install:
+      - sudo apt-get install -y zsh
+      - "Install Oh My Zsh (non-interactive)"
+      - "Install powerlevel10k theme"
+      - "Install plugins: zsh-autosuggestions, zsh-syntax-highlighting"
+      - "Write ~/.acfs/zsh/acfs.zshrc and source it from ~/.zshrc"
+    verify:
+      - zsh --version
+      - test -f ~/.acfs/zsh/acfs.zshrc
+
+  - id: cli.modern
+    description: Modern CLI tools referenced by the zshrc intent
+    install:
+      - sudo apt-get install -y ripgrep tmux fzf direnv
+      - sudo apt-get install -y lsd || true
+      - sudo apt-get install -y eza || true
+      - sudo apt-get install -y bat || sudo apt-get install -y batcat || true
+      - sudo apt-get install -y fd-find || true
+      - sudo apt-get install -y btop || true
+      - sudo apt-get install -y dust || true
+      - sudo apt-get install -y neovim || true
+      - sudo apt-get install -y docker.io docker-compose-plugin || true
+      - sudo apt-get install -y lazygit || true
+      - sudo apt-get install -y lazydocker || true
+    verify:
+      - rg --version
+      - tmux -V
+      - fzf --version
+      - command -v lsd || command -v eza || true
+
+  # ============================================================
+  # PHASE 4: Languages + package tooling
+  # ============================================================
+  - id: lang.bun
+    description: Bun runtime for JS tooling and global CLIs
+    install:
+      - |
+        curl -fsSL https://bun.sh/install | bash
+    verify:
+      - ~/.bun/bin/bun --version
+
+  - id: lang.uv
+    description: uv Python tooling (fast venvs)
+    install:
+      - |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+    verify:
+      - ~/.local/bin/uv --version
+    notes:
+      - "uv install per Astral docs"
+
+  - id: lang.rust
+    description: Rust + cargo
+    install:
+      - |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+    verify:
+      - ~/.cargo/bin/cargo --version
+
+  - id: lang.go
+    description: Go toolchain
+    install:
+      - sudo apt-get install -y golang-go
+    verify:
+      - go version
+
+  # ============================================================
+  # PHASE 5: Agentic engineering tools
+  # ============================================================
+  - id: tools.atuin
+    description: Atuin shell history (Ctrl-R superpowers)
+    install:
+      - |
+        curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+    verify:
+      - ~/.atuin/bin/atuin --version
+
+  - id: tools.zoxide
+    description: Zoxide (better cd)
+    install:
+      - |
+        curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+    verify:
+      - command -v zoxide
+
+  - id: tools.ast_grep
+    description: ast-grep (used by UBS for syntax-aware scanning)
+    install:
+      - ~/.cargo/bin/cargo install ast-grep
+    verify:
+      - sg --version
+
+  - id: tools.vault
+    description: HashiCorp Vault CLI
+    install:
+      - "Install Vault via official HashiCorp instructions (apt repo or binary)"
+    verify:
+      - vault --version
+
+  - id: db.postgres18
+    description: PostgreSQL 18
+    install:
+      - "Add PGDG apt repo"
+      - sudo apt-get install -y postgresql-18
+    verify:
+      - psql --version
+      - systemctl status postgresql --no-pager || true
+
+  # ============================================================
+  # Cloud CLIs
+  # ============================================================
+  - id: cloud.wrangler
+    description: Cloudflare Wrangler CLI
+    install:
+      - ~/.bun/bin/bun install -g wrangler
+    verify:
+      - wrangler --version
+
+  - id: cloud.supabase
+    description: Supabase CLI
+    install:
+      - ~/.bun/bin/bun install -g supabase
+    verify:
+      - supabase --version
+
+  - id: cloud.vercel
+    description: Vercel CLI
+    install:
+      - ~/.bun/bin/bun install -g vercel
+    verify:
+      - vercel --version
+
+  # ============================================================
+  # Coding agents
+  # ============================================================
+  - id: agents.claude
+    description: Claude Code
+    install:
+      - "Install claude code via official method"
+    verify:
+      - claude --version || claude --help
+
+  - id: agents.codex
+    description: OpenAI Codex CLI
+    install:
+      - ~/.bun/bin/bun install -g @openai/codex@latest
+    verify:
+      - codex --version || codex --help
+
+  - id: agents.gemini
+    description: Google Gemini CLI
+    install:
+      - ~/.bun/bin/bun install -g @google/gemini-cli@latest
+    verify:
+      - gemini --version || gemini --help
+
+  # ============================================================
+  # PHASE 6: Dicklesworthstone stack (all 8 tools)
+  # ============================================================
+  - id: stack.ntm
+    description: Named tmux manager (agent cockpit)
+    install:
+      - |
+        curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/ntm/main/install.sh | bash
+    verify:
+      - ntm --help
+
+  - id: stack.mcp_agent_mail
+    description: Like gmail for coding agents; MCP HTTP server + token; installs beads tools
+    install:
+      - |
+        curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/mcp_agent_mail/main/scripts/install.sh?$(date +%s)" | bash -s -- --yes
+    verify:
+      - command -v am
+      - curl -fsS http://127.0.0.1:8765/health || true
+
+  - id: stack.ultimate_bug_scanner
+    description: UBS bug scanning (easy-mode)
+    install:
+      - |
+        curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/ultimate_bug_scanner/master/install.sh?$(date +%s)" | bash -s -- --easy-mode
+    verify:
+      - ubs --help
+      - ubs doctor || true
+
+  - id: stack.beads_viewer
+    description: bv TUI for Beads tasks
+    install:
+      - |
+        curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)" | bash
+    verify:
+      - bv --help || bv --version
+
+  - id: stack.cass
+    description: Unified search across agent session history
+    install:
+      - |
+        curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_session_search/main/install.sh | bash -s -- --easy-mode --verify
+    verify:
+      - cass --help || cass --version
+
+  - id: stack.cm
+    description: Procedural memory for agents (cass-memory)
+    install:
+      - |
+        curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/cass_memory_system/main/install.sh | bash -s -- --easy-mode --verify
+    verify:
+      - cm --version
+      - cm doctor --json || true
+
+  - id: stack.caam
+    description: Instant auth switching for agent CLIs
+    install:
+      - |
+        curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_account_manager/main/install.sh?$(date +%s)" | bash
+    verify:
+      - caam status || caam --help
+
+  - id: stack.slb
+    description: Two-person rule for dangerous commands (optional guardrails)
+    install:
+      - |
+        curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/simultaneous_launch_button/main/scripts/install.sh | bash
+    verify:
+      - slb --help
+
+  # ============================================================
+  # PHASE 7: Final wiring
+  # ============================================================
+  - id: acfs.onboard
+    description: Onboarding TUI tutorial
+    install:
+      - "Install onboard script to ~/.local/bin/onboard"
+    verify:
+      - onboard --help || command -v onboard
+
+  - id: acfs.doctor
+    description: ACFS doctor command for health checks
+    install:
+      - "Install acfs script to ~/.local/bin/acfs"
+    verify:
+      - acfs doctor --help || command -v acfs
