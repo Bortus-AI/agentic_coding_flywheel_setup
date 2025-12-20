@@ -11,6 +11,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/../lib/logging.sh" ]]; then
     source "$SCRIPT_DIR/../lib/logging.sh"
+else
+    # Fallback logging functions if logging.sh not found
+    log_step() { echo "[*] $*"; }
+    log_section() { echo ""; echo "=== $* ==="; }
+    log_success() { echo "[OK] $*"; }
+    log_error() { echo "[ERROR] $*" >&2; }
+    log_warn() { echo "[WARN] $*" >&2; }
+    log_info() { echo "    $*"; }
 fi
 
 # Category: base
