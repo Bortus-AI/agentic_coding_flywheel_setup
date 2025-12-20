@@ -40,3 +40,36 @@ export function detectOS(): OperatingSystem | null {
   if (ua.includes("win")) return "windows";
   return null;
 }
+
+// VPS IP Address storage
+const VPS_IP_KEY = "acfs-vps-ip";
+
+/**
+ * Get the user's VPS IP address from localStorage.
+ */
+export function getVPSIP(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(VPS_IP_KEY);
+}
+
+/**
+ * Save the user's VPS IP address to localStorage.
+ */
+export function setVPSIP(ip: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(VPS_IP_KEY, ip);
+}
+
+/**
+ * Validate an IP address (basic IPv4 validation).
+ */
+export function isValidIP(ip: string): boolean {
+  const pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (!pattern.test(ip)) return false;
+
+  const parts = ip.split(".");
+  return parts.every((part) => {
+    const num = parseInt(part, 10);
+    return num >= 0 && num <= 255;
+  });
+}
