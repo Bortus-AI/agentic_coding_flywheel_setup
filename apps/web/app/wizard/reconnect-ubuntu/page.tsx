@@ -15,12 +15,20 @@ import {
   GuideExplain,
   GuideTip,
 } from "@/components/simpler-guide";
+import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
 
 export default function ReconnectUbuntuPage() {
   const router = useRouter();
   const [vpsIP] = useVPSIP();
   const [isNavigating, setIsNavigating] = useState(false);
   const mounted = useMounted();
+
+  // Analytics tracking for this wizard step
+  const { markComplete } = useWizardAnalytics({
+    step: "reconnect_ubuntu",
+    stepNumber: 8,
+    stepTitle: "Reconnect as Ubuntu",
+  });
 
   // Redirect if no VPS IP (after hydration)
   useEffect(() => {
@@ -30,16 +38,18 @@ export default function ReconnectUbuntuPage() {
   }, [mounted, vpsIP, router]);
 
   const handleContinue = useCallback(() => {
+    markComplete();
     markStepComplete(8);
     setIsNavigating(true);
     router.push("/wizard/status-check");
-  }, [router]);
+  }, [router, markComplete]);
 
   const handleSkip = useCallback(() => {
+    markComplete({ skipped: true });
     markStepComplete(8);
     setIsNavigating(true);
     router.push("/wizard/status-check");
-  }, [router]);
+  }, [router, markComplete]);
 
   if (!mounted || !vpsIP) {
     return (

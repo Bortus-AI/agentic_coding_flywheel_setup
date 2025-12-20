@@ -15,6 +15,7 @@ import {
   GuideTip,
   GuideCaution,
 } from "@/components/simpler-guide";
+import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
 
 const QUICK_CHECKS = [
   {
@@ -35,11 +36,19 @@ export default function StatusCheckPage() {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // Analytics tracking for this wizard step
+  const { markComplete } = useWizardAnalytics({
+    step: "status_check",
+    stepNumber: 9,
+    stepTitle: "Status Check",
+  });
+
   const handleContinue = useCallback(() => {
+    markComplete();
     markStepComplete(9);
     setIsNavigating(true);
     router.push("/wizard/launch-onboarding");
-  }, [router]);
+  }, [router, markComplete]);
 
   return (
     <div className="space-y-8">

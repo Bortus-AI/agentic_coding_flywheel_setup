@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
 import { Check, AlertCircle, Server, ChevronDown, HardDrive } from "lucide-react";
@@ -117,7 +117,9 @@ export default function CreateVPSPage() {
 
   // Store markComplete in a ref for use in form's onSubmit
   const markCompleteRef = useRef(markComplete);
-  markCompleteRef.current = markComplete;
+  useEffect(() => {
+    markCompleteRef.current = markComplete;
+  }, [markComplete]);
 
   const form = useForm({
     defaultValues: {

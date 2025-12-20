@@ -14,6 +14,7 @@ import {
   GuideExplain,
   GuideTip,
 } from "@/components/simpler-guide";
+import { useWizardAnalytics } from "@/lib/hooks/useWizardAnalytics";
 
 // Confetti colors
 const CONFETTI_COLORS = [
@@ -75,13 +76,21 @@ function ConfettiParticle({ delay, left, color, size, rotation, duration, isRoun
 }
 
 export default function LaunchOnboardingPage() {
+  // Analytics tracking for this wizard step
+  const { markComplete } = useWizardAnalytics({
+    step: "launch_onboarding",
+    stepNumber: 10,
+    stepTitle: "Launch Onboarding",
+  });
+
   // Mark all steps complete on reaching this page
   useEffect(() => {
+    markComplete({ wizard_completed: true });
     markStepComplete(10);
     // Mark all steps as completed
     const allSteps = Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1);
     setCompletedSteps(allSteps);
-  }, []);
+  }, [markComplete]);
 
   return (
     <div className="space-y-8">
