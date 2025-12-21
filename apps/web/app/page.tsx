@@ -16,7 +16,7 @@ import {
   Heart,
   MessageCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { springs, fadeUp, staggerContainer, fadeScale } from "@/components/motion";
 import { useScrollReveal, staggerDelay } from "@/lib/hooks/useScrollReveal";

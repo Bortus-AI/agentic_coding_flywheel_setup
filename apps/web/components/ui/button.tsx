@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion, type HTMLMotionProps } from "framer-motion";
+import { m, type HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { springs } from "@/components/motion";
 
@@ -109,8 +109,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }
 
     // Motion-enhanced button with spring animations
+    // Using m.button (not motion.button) for LazyMotion compatibility
     return (
-      <motion.button
+      <m.button
         ref={ref}
         className={cn(buttonVariants({ variant, size, className }))}
         whileHover={{ scale: 1.02 }}
@@ -119,7 +120,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {children}
-      </motion.button>
+      </m.button>
     );
   }
 );

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { m, AnimatePresence, type Variants } from "framer-motion";
 
 /**
  * Spring configurations optimized for Stripe/Linear-style subtle, professional feel.
@@ -176,26 +176,28 @@ export function getMotionProps(
 
 /**
  * Type-safe motion component exports
+ * Using `m` components for LazyMotion compatibility
  */
-export const MotionDiv = motion.div;
-export const MotionSpan = motion.span;
-export const MotionSection = motion.section;
-export const MotionNav = motion.nav;
-export const MotionButton = motion.button;
-export const MotionA = motion.a;
-export const MotionUl = motion.ul;
-export const MotionLi = motion.li;
-export const MotionHeader = motion.header;
-export const MotionFooter = motion.footer;
-export const MotionArticle = motion.article;
-export const MotionAside = motion.aside;
-export const MotionMain = motion.main;
-export const MotionP = motion.p;
-export const MotionH1 = motion.h1;
-export const MotionH2 = motion.h2;
-export const MotionH3 = motion.h3;
-export const MotionH4 = motion.h4;
+export const MotionDiv = m.div;
+export const MotionSpan = m.span;
+export const MotionSection = m.section;
+export const MotionNav = m.nav;
+export const MotionButton = m.button;
+export const MotionA = m.a;
+export const MotionUl = m.ul;
+export const MotionLi = m.li;
+export const MotionHeader = m.header;
+export const MotionFooter = m.footer;
+export const MotionArticle = m.article;
+export const MotionAside = m.aside;
+export const MotionMain = m.main;
+export const MotionP = m.p;
+export const MotionH1 = m.h1;
+export const MotionH2 = m.h2;
+export const MotionH3 = m.h3;
+export const MotionH4 = m.h4;
 
-// Re-export essentials from framer-motion
-export { motion, AnimatePresence };
+// Re-export `m` as `motion` for backwards compatibility with LazyMotion strict mode
+// This allows existing code using `motion.div` etc. to work without changes
+export { m as motion, AnimatePresence };
 export type { Variants };

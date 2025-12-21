@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, ReactNode } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/components/motion";
 import { HelpCircle, ChevronDown, Lightbulb, ArrowRight, Check, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { springs } from "@/components/motion";
