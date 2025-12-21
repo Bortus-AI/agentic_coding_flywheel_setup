@@ -146,7 +146,7 @@ function ConnectionLine({
         stroke={`url(#${gradientId})`}
         strokeWidth={isHighlighted ? 2 : 1}
         strokeLinecap="round"
-        strokeDasharray={`${pathLength * 0.12} ${pathLength * 0.38}`}
+        strokeDasharray="12 38"
         className="animate-flow"
         style={{
           opacity: isHighlighted ? 0.8 : 0.4,

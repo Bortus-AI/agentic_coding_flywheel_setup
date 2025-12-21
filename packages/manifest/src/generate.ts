@@ -92,21 +92,62 @@ const MANIFEST_INDEX_HEADER = `#!/usr/bin/env bash
 `;
 
 // ============================================================
+// Security Constants
+// ============================================================
+
+/**
+ * Allowlist of valid runners for verified_installer.
+ * SECURITY: Only allow known-safe shell interpreters.
+ * Must match schema.ts VerifiedInstallerRunnerSchema.
+ */
+const ALLOWED_RUNNERS = new Set(['bash', 'sh']);
+
+// ============================================================
 // Helpers
 // ============================================================
 
 /**
+ * Shell-safe quoting using single quotes.
+ * Single quotes prevent all shell expansion except for the single quote character itself.
+ * To include a single quote: close the quote, add escaped quote, reopen quote.
+ *
+ * SECURITY: This is the only safe way to quote arbitrary strings for shell execution.
+ *
+ * @example
+ * shellQuote("hello world") → "'hello world'"
+ * shellQuote("it's") → "'it'\\''s'" (which produces: it's)
+ * shellQuote("$HOME") → "'$HOME'" (no expansion)
+ * shellQuote("$(rm -rf /)") → "'$(rm -rf /)'" (no command execution)
+ */
+function shellQuote(str: string): string {
+  // Replace each single quote with: '\'' (close quote, escaped quote, reopen quote)
+  const escaped = str.replace(/'/g, "'\\''");
+  return `'${escaped}'`;
+}
+
+/**
  * Build the pipe command from verified_installer.runner and args
+ *
+ * SECURITY: Uses shellQuote() to prevent command injection via args.
+ * Runner must be in ALLOWED_RUNNERS (enforced by schema, validated here too).
  */
 function buildVerifiedInstallerPipe(module: Module): string {
   const vi = module.verified_installer;
   if (!vi) return '';
 
+  // SECURITY: Validate runner is in allowlist (belt-and-suspenders with schema)
+  if (!ALLOWED_RUNNERS.has(vi.runner)) {
+    throw new Error(
+      `SECURITY: Invalid runner "${vi.runner}" for module "${module.id}". ` +
+        `Only ${Array.from(ALLOWED_RUNNERS).join(', ')} allowed.`
+    );
+  }
+
   const parts: string[] = [vi.runner];
   if (vi.args && vi.args.length > 0) {
-    // Quote args that contain spaces
+    // SECURITY: Use proper shell quoting to prevent command injection
     for (const arg of vi.args) {
-      parts.push(arg.includes(' ') ? `"${arg}"` : arg);
+      parts.push(shellQuote(arg));
     }
   }
   return parts.join(' ');
