@@ -289,9 +289,13 @@ test.describe("Navigation", () => {
   test("should show mobile stepper on small screens", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/wizard/os-selection");
+    await page.waitForLoadState("networkidle");
 
-    // Mobile header should be visible
-    await expect(page.locator('text="Step"')).toBeVisible();
+    // Mobile stepper should show step indicator with correct format
+    await expect(page.getByText(/Step\s+\d+\s+of\s+\d+/i)).toBeVisible({ timeout: 5000 });
+
+    // Mobile navigation buttons should be visible at bottom
+    await expect(page.locator('nav button').first()).toBeVisible();
   });
 
   test("should navigate using back button", async ({ page }) => {
@@ -393,14 +397,13 @@ test.describe("Beginner Guide", () => {
     await page.goto("/wizard/os-selection");
     await page.waitForLoadState("networkidle");
 
-    // Find and click the SimplerGuide toggle
+    // Find and click the SimplerGuide toggle - it MUST be visible
     const guideToggle = page.getByRole('button', { name: /make it simpler/i });
-    if (await guideToggle.isVisible()) {
-      await guideToggle.click();
+    await expect(guideToggle).toBeVisible({ timeout: 5000 });
+    await guideToggle.click();
 
-      // After clicking, the subtitle should change to "Click to collapse"
-      await expect(page.getByText(/click to collapse/i)).toBeVisible();
-    }
+    // After clicking, the subtitle should change to "Click to collapse"
+    await expect(page.getByText(/click to collapse/i)).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -452,9 +455,13 @@ test.describe("Complete Wizard Flow Integration", () => {
     for (let i = 0; i < count; i++) {
       await checkboxes.nth(i).click();
     }
-    // Users often paste IPs with surrounding whitespace/newlines.
-    await page.fill('input[placeholder*="192.168"]', " 192.168.1.100 ");
-    await expect(page.locator('text="Valid IP address"')).toBeVisible();
+    // Users often paste IPs with surrounding whitespace - test that trimming works
+    // Use type() + blur() for cross-browser reliability
+    const ipInput = page.locator('input[placeholder*="192.168"]');
+    await ipInput.clear();
+    await ipInput.type(" 192.168.1.100 ");
+    await ipInput.blur();
+    await expect(page.locator('text="Valid IP address"')).toBeVisible({ timeout: 10000 });
     await page.click('button:has-text("Continue to SSH")');
     await expect(page).toHaveURL("/wizard/ssh-connect");
 
