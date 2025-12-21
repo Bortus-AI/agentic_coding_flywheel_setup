@@ -8,9 +8,10 @@
  *   bun run generate (from packages/manifest)
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 import { parseManifestFile } from './parser.js';
 import {
   getCategories,
@@ -27,6 +28,7 @@ const SCRIPT_FILE = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = resolve(dirname(SCRIPT_FILE), '../../..');
 const MANIFEST_PATH = join(PROJECT_ROOT, 'acfs.manifest.yaml');
 const OUTPUT_DIR = join(PROJECT_ROOT, 'scripts/generated');
+const CHECKSUMS_PATH = join(PROJECT_ROOT, 'checksums.yaml');
 
 const HEADER = `#!/usr/bin/env bash
 # shellcheck disable=SC1091
@@ -50,11 +52,59 @@ else
     log_warn() { echo "[WARN] \$*" >&2; }
     log_info() { echo "    \$*"; }
 fi
+
+# Optional security verification for upstream installer scripts.
+# Scripts that need it should call: acfs_security_init
+ACFS_SECURITY_READY=false
+acfs_security_init() {
+    if [[ "\${ACFS_SECURITY_READY}" == "true" ]]; then
+        return 0
+    fi
+
+    local security_lib="\$SCRIPT_DIR/../lib/security.sh"
+    if [[ ! -f "\$security_lib" ]]; then
+        log_error "Security library not found: \$security_lib"
+        return 1
+    fi
+
+    # shellcheck source=../lib/security.sh
+    # shellcheck disable=SC1091  # runtime relative source
+    source "\$security_lib"
+    load_checksums || { log_error "Failed to load checksums.yaml"; return 1; }
+    ACFS_SECURITY_READY=true
+    return 0
+}
 `;
 
 // ============================================================
 // Helpers
 // ============================================================
+
+type VerifiedInstallerSpec = {
+  tool: string;
+  pipe: string;
+};
+
+const VERIFIED_INSTALLERS_BY_MODULE_ID: Record<string, VerifiedInstallerSpec> = {
+  // Languages
+  'lang.bun': { tool: 'bun', pipe: 'bash -s --' },
+  'lang.uv': { tool: 'uv', pipe: 'sh' },
+  'lang.rust': { tool: 'rust', pipe: 'sh -s -- -y' },
+
+  // Tools
+  'tools.atuin': { tool: 'atuin', pipe: 'sh' },
+  'tools.zoxide': { tool: 'zoxide', pipe: 'sh' },
+
+  // Stack
+  'stack.ntm': { tool: 'ntm', pipe: 'bash -s --' },
+  'stack.mcp_agent_mail': { tool: 'mcp_agent_mail', pipe: 'bash -s -- --yes' },
+  'stack.ultimate_bug_scanner': { tool: 'ubs', pipe: 'bash -s -- --easy-mode' },
+  'stack.beads_viewer': { tool: 'bv', pipe: 'bash -s --' },
+  'stack.cass': { tool: 'cass', pipe: 'bash -s -- --easy-mode --verify' },
+  'stack.cm': { tool: 'cm', pipe: 'bash -s -- --easy-mode --verify' },
+  'stack.caam': { tool: 'caam', pipe: 'bash -s --' },
+  'stack.slb': { tool: 'slb', pipe: 'bash -s --' },
+};
 
 /**
  * Convert module ID to a valid bash function name
@@ -83,13 +133,50 @@ function escapeBash(str: string): string {
     .replace(/`/g, '\\`');   // Backticks (prevents command substitution)
 }
 
+function isCurlPipeInstaller(cmd: string): boolean {
+  return /\bcurl\b/.test(cmd) && /\|\s*(bash|sh)\b/.test(cmd);
+}
+
+function generateVerifiedInstallerSnippet(moduleId: string, spec: VerifiedInstallerSpec): string[] {
+  return [
+    '    # Verified upstream installer script (checksums.yaml)',
+    '    if ! acfs_security_init; then',
+    `        log_error "Security verification unavailable for ${moduleId}"`,
+    '        return 1',
+    '    fi',
+    '',
+    `    local tool="${spec.tool}"`,
+    '    local url="${KNOWN_INSTALLERS[$tool]:-}"',
+    '    local expected_sha256',
+    '    expected_sha256="$(get_checksum "$tool")"',
+    '    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then',
+    '        log_error "Missing checksum entry for $tool"',
+    '        return 1',
+    '    fi',
+    `    verify_checksum "$url" "$expected_sha256" "$tool" | ${spec.pipe}`,
+  ];
+}
+
 /**
  * Generate the install commands for a module
  */
 function generateInstallCommands(module: Module): string[] {
   const lines: string[] = [];
+  const verifiedSpec = VERIFIED_INSTALLERS_BY_MODULE_ID[module.id];
+  let verifiedInserted = false;
 
   for (const cmd of module.install) {
+    const normalized = cmd.includes('\n') || cmd.startsWith('|')
+      ? cmd.replace(/^\|?\n?/, '').trim()
+      : cmd.trim();
+
+    // Rewrite known upstream curl|bash/sh install commands to verified execution.
+    if (verifiedSpec && !verifiedInserted && isCurlPipeInstaller(normalized)) {
+      lines.push(...generateVerifiedInstallerSnippet(module.id, verifiedSpec));
+      verifiedInserted = true;
+      continue;
+    }
+
     // Check if it's a description (not an actual command)
     if (cmd.startsWith('"') || cmd.match(/^[A-Z][a-z]/)) {
       lines.push(`    # ${cmd}`);
@@ -328,6 +415,37 @@ async function main(): Promise<void> {
   const categories = getCategories(manifest);
   console.log(`Categories: ${categories.join(', ')}`);
   console.log('');
+
+  // Validate checksum coverage for known upstream installers (fail closed).
+  if (!existsSync(CHECKSUMS_PATH)) {
+    console.error(`Missing required file: ${CHECKSUMS_PATH}`);
+    console.error('Refusing to generate scripts that require checksum verification without checksums.yaml.');
+    process.exit(1);
+  }
+
+  try {
+    const checksums = parseYaml(readFileSync(CHECKSUMS_PATH, 'utf-8')) as {
+      installers?: Record<string, { url?: string; sha256?: string }>;
+    };
+    const installers = checksums.installers ?? {};
+
+    const missingTools = new Set<string>();
+    for (const spec of Object.values(VERIFIED_INSTALLERS_BY_MODULE_ID)) {
+      const entry = installers[spec.tool];
+      if (!entry?.url || !entry?.sha256) {
+        missingTools.add(spec.tool);
+      }
+    }
+
+    if (missingTools.size > 0) {
+      console.error(`checksums.yaml missing installer entries: ${Array.from(missingTools).sort().join(', ')}`);
+      console.error('Update checksums.yaml (./scripts/lib/security.sh --update-checksums > checksums.yaml) before regenerating.');
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(`Failed to parse checksums.yaml: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
 
   // Ensure output directory exists
   if (!dryRun) {

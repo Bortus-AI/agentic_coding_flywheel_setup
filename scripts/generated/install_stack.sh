@@ -21,6 +21,28 @@ else
     log_info() { echo "    $*"; }
 fi
 
+# Optional security verification for upstream installer scripts.
+# Scripts that need it should call: acfs_security_init
+ACFS_SECURITY_READY=false
+acfs_security_init() {
+    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+        return 0
+    fi
+
+    local security_lib="$SCRIPT_DIR/../lib/security.sh"
+    if [[ ! -f "$security_lib" ]]; then
+        log_error "Security library not found: $security_lib"
+        return 1
+    fi
+
+    # shellcheck source=../lib/security.sh
+    # shellcheck disable=SC1091  # runtime relative source
+    source "$security_lib"
+    load_checksums || { log_error "Failed to load checksums.yaml"; return 1; }
+    ACFS_SECURITY_READY=true
+    return 0
+}
+
 # Category: stack
 # Modules: 8
 
@@ -28,7 +50,21 @@ fi
 install_stack_ntm() {
     log_step "Installing stack.ntm"
 
-    curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/ntm/main/install.sh | bash
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.ntm"
+        return 1
+    fi
+
+    local tool="ntm"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s --
 
     # Verify
     ntm --help || { log_error "Verify failed: stack.ntm"; return 1; }
@@ -40,7 +76,21 @@ install_stack_ntm() {
 install_stack_mcp_agent_mail() {
     log_step "Installing stack.mcp_agent_mail"
 
-    curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/mcp_agent_mail/main/scripts/install.sh?$(date +%s)" | bash -s -- --yes
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.mcp_agent_mail"
+        return 1
+    fi
+
+    local tool="mcp_agent_mail"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s -- --yes
 
     # Verify
     command -v am || { log_error "Verify failed: stack.mcp_agent_mail"; return 1; }
@@ -53,7 +103,21 @@ install_stack_mcp_agent_mail() {
 install_stack_ultimate_bug_scanner() {
     log_step "Installing stack.ultimate_bug_scanner"
 
-    curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/ultimate_bug_scanner/master/install.sh?$(date +%s)" | bash -s -- --easy-mode
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.ultimate_bug_scanner"
+        return 1
+    fi
+
+    local tool="ubs"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s -- --easy-mode
 
     # Verify
     ubs --help || { log_error "Verify failed: stack.ultimate_bug_scanner"; return 1; }
@@ -66,7 +130,21 @@ install_stack_ultimate_bug_scanner() {
 install_stack_beads_viewer() {
     log_step "Installing stack.beads_viewer"
 
-    curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/beads_viewer/main/install.sh?$(date +%s)" | bash
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.beads_viewer"
+        return 1
+    fi
+
+    local tool="bv"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s --
 
     # Verify
     bv --help || bv --version || { log_error "Verify failed: stack.beads_viewer"; return 1; }
@@ -78,7 +156,21 @@ install_stack_beads_viewer() {
 install_stack_cass() {
     log_step "Installing stack.cass"
 
-    curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_session_search/main/install.sh | bash -s -- --easy-mode --verify
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.cass"
+        return 1
+    fi
+
+    local tool="cass"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s -- --easy-mode --verify
 
     # Verify
     cass --help || cass --version || { log_error "Verify failed: stack.cass"; return 1; }
@@ -90,7 +182,21 @@ install_stack_cass() {
 install_stack_cm() {
     log_step "Installing stack.cm"
 
-    curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/cass_memory_system/main/install.sh | bash -s -- --easy-mode --verify
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.cm"
+        return 1
+    fi
+
+    local tool="cm"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s -- --easy-mode --verify
 
     # Verify
     cm --version || { log_error "Verify failed: stack.cm"; return 1; }
@@ -103,7 +209,21 @@ install_stack_cm() {
 install_stack_caam() {
     log_step "Installing stack.caam"
 
-    curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/coding_agent_account_manager/main/install.sh?$(date +%s)" | bash
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.caam"
+        return 1
+    fi
+
+    local tool="caam"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s --
 
     # Verify
     caam status || caam --help || { log_error "Verify failed: stack.caam"; return 1; }
@@ -115,7 +235,21 @@ install_stack_caam() {
 install_stack_slb() {
     log_step "Installing stack.slb"
 
-    curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/simultaneous_launch_button/main/scripts/install.sh | bash
+    # Verified upstream installer script (checksums.yaml)
+    if ! acfs_security_init; then
+        log_error "Security verification unavailable for stack.slb"
+        return 1
+    fi
+
+    local tool="slb"
+    local url="${KNOWN_INSTALLERS[$tool]:-}"
+    local expected_sha256
+    expected_sha256="$(get_checksum "$tool")"
+    if [[ -z "$url" ]] || [[ -z "$expected_sha256" ]]; then
+        log_error "Missing checksum entry for $tool"
+        return 1
+    fi
+    verify_checksum "$url" "$expected_sha256" "$tool" | bash -s --
 
     # Verify
     slb --help || { log_error "Verify failed: stack.slb"; return 1; }

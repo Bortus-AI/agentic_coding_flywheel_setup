@@ -21,6 +21,28 @@ else
     log_info() { echo "    $*"; }
 fi
 
+# Optional security verification for upstream installer scripts.
+# Scripts that need it should call: acfs_security_init
+ACFS_SECURITY_READY=false
+acfs_security_init() {
+    if [[ "${ACFS_SECURITY_READY}" == "true" ]]; then
+        return 0
+    fi
+
+    local security_lib="$SCRIPT_DIR/../lib/security.sh"
+    if [[ ! -f "$security_lib" ]]; then
+        log_error "Security library not found: $security_lib"
+        return 1
+    fi
+
+    # shellcheck source=../lib/security.sh
+    # shellcheck disable=SC1091  # runtime relative source
+    source "$security_lib"
+    load_checksums || { log_error "Failed to load checksums.yaml"; return 1; }
+    ACFS_SECURITY_READY=true
+    return 0
+}
+
 # Category: acfs
 # Modules: 2
 

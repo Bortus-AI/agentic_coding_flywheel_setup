@@ -85,6 +85,8 @@ tests/vm/*.box
 tests/vm/ubuntu-*
 apps/web/mobile-screenshots/
 apps/web/test-mobile.ts
+apps/web/playwright-report/
+apps/web/test-results/
 
 # ----- Installer test outputs -----
 *.log

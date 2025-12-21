@@ -3,6 +3,8 @@
 # ============================================================
 # ACFS Doctor - System Health Check
 # Validates that ACFS installation is complete and working
+#
+# Uses gum for enhanced terminal UI when available
 # ============================================================
 
 ACFS_VERSION="${ACFS_VERSION:-0.1.0}"
@@ -34,11 +36,37 @@ ensure_path() {
 }
 ensure_path
 
-# Colors
+# Check for gum and source gum_ui if available
+HAS_GUM=false
+if command -v gum &>/dev/null; then
+    HAS_GUM=true
+fi
+
+# Source gum_ui library if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/gum_ui.sh" ]]; then
+    source "$SCRIPT_DIR/gum_ui.sh"
+elif [[ -f "$HOME/.acfs/scripts/lib/gum_ui.sh" ]]; then
+    source "$HOME/.acfs/scripts/lib/gum_ui.sh"
+fi
+
+# Colors (fallback if gum_ui not loaded)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m'
+
+# Color scheme (Catppuccin Mocha)
+ACFS_PRIMARY="${ACFS_PRIMARY:-#89b4fa}"
+ACFS_SUCCESS="${ACFS_SUCCESS:-#a6e3a1}"
+ACFS_WARNING="${ACFS_WARNING:-#f9e2af}"
+ACFS_ERROR="${ACFS_ERROR:-#f38ba8}"
+ACFS_MUTED="${ACFS_MUTED:-#6c7086}"
+ACFS_ACCENT="${ACFS_ACCENT:-#cba6f7}"
+ACFS_TEAL="${ACFS_TEAL:-#94e2d5}"
 
 # Counters
 PASS_COUNT=0
@@ -52,7 +80,19 @@ JSON_CHECKS=()
 # Print a section header only in human output mode.
 section() {
     if [[ "$JSON_MODE" != "true" ]]; then
-        echo "$1"
+        if [[ "$HAS_GUM" == "true" ]]; then
+            echo ""
+            gum style \
+                --foreground "$ACFS_PRIMARY" \
+                --bold \
+                --border-foreground "$ACFS_MUTED" \
+                --border normal \
+                --padding "0 2" \
+                "󰋊 $1"
+        else
+            echo ""
+            echo -e "${CYAN}━━━ $1 ━━━${NC}"
+        fi
     fi
 }
 
@@ -98,23 +138,43 @@ check() {
         return 0
     fi
 
-    case "$status" in
-        pass)
-            echo -e "  ${GREEN}PASS${NC} $label"
-            ;;
-        warn)
-            echo -e "  ${YELLOW}WARN${NC} $label"
-            if [[ -n "$fix" ]]; then
-                echo -e "        Fix: $fix"
-            fi
-            ;;
-        fail)
-            echo -e "  ${RED}FAIL${NC} $label"
-            if [[ -n "$fix" ]]; then
-                echo -e "        Fix: $fix"
-            fi
-            ;;
-    esac
+    if [[ "$HAS_GUM" == "true" ]]; then
+        case "$status" in
+            pass)
+                echo "  $(gum style --foreground "$ACFS_SUCCESS" --bold "✓ PASS") $(gum style --foreground "$ACFS_TEAL" "$label")"
+                ;;
+            warn)
+                echo "  $(gum style --foreground "$ACFS_WARNING" --bold "⚠ WARN") $(gum style "$label")"
+                if [[ -n "$fix" ]]; then
+                    echo "        $(gum style --foreground "$ACFS_MUTED" "Fix:") $(gum style --foreground "$ACFS_ACCENT" --italic "$fix")"
+                fi
+                ;;
+            fail)
+                echo "  $(gum style --foreground "$ACFS_ERROR" --bold "✖ FAIL") $(gum style "$label")"
+                if [[ -n "$fix" ]]; then
+                    echo "        $(gum style --foreground "$ACFS_MUTED" "Fix:") $(gum style --foreground "$ACFS_ACCENT" --italic "$fix")"
+                fi
+                ;;
+        esac
+    else
+        case "$status" in
+            pass)
+                echo -e "  ${GREEN}✓ PASS${NC} $label"
+                ;;
+            warn)
+                echo -e "  ${YELLOW}⚠ WARN${NC} $label"
+                if [[ -n "$fix" ]]; then
+                    echo -e "        Fix: $fix"
+                fi
+                ;;
+            fail)
+                echo -e "  ${RED}✖ FAIL${NC} $label"
+                if [[ -n "$fix" ]]; then
+                    echo -e "        Fix: $fix"
+                fi
+                ;;
+        esac
+    fi
 }
 
 # Try to retrieve a reasonably informative version line for a command without
@@ -338,18 +398,54 @@ check_stack() {
 
 # Print summary
 print_summary() {
-    echo "============================================================"
-    echo -e "Checks: ${GREEN}$PASS_COUNT passed${NC}, ${YELLOW}$WARN_COUNT warnings${NC}, ${RED}$FAIL_COUNT failed${NC}"
     echo ""
 
-    if [[ $FAIL_COUNT -eq 0 ]]; then
-        echo -e "${GREEN}All critical checks passed!${NC}"
-        echo ""
-        echo "Next: run 'onboard' to learn how to use your new setup"
+    if [[ "$HAS_GUM" == "true" ]]; then
+        # Beautiful gum-styled summary
+        local status_line=""
+        status_line="$(gum style --foreground "$ACFS_SUCCESS" --bold "$PASS_COUNT passed") "
+        status_line+="$(gum style --foreground "$ACFS_WARNING" "$WARN_COUNT warnings") "
+        status_line+="$(gum style --foreground "$ACFS_ERROR" "$FAIL_COUNT failed")"
+
+        if [[ $FAIL_COUNT -eq 0 ]]; then
+            gum style \
+                --border double \
+                --border-foreground "$ACFS_SUCCESS" \
+                --padding "1 3" \
+                --margin "1 0" \
+                --align center \
+                "$(gum style --foreground "$ACFS_SUCCESS" --bold '✓ ACFS Health Check Passed')
+
+$status_line
+
+$(gum style --foreground "$ACFS_MUTED" "Next: run 'onboard' to learn how to use your new setup")"
+        else
+            gum style \
+                --border double \
+                --border-foreground "$ACFS_ERROR" \
+                --padding "1 3" \
+                --margin "1 0" \
+                --align center \
+                "$(gum style --foreground "$ACFS_ERROR" --bold '✖ Some Checks Failed')
+
+$status_line
+
+$(gum style --foreground "$ACFS_MUTED" "Run the suggested fix commands, then 'acfs doctor' again")"
+        fi
     else
-        echo -e "${RED}Some checks failed. Run the suggested fix commands.${NC}"
+        echo "============================================================"
+        echo -e "Checks: ${GREEN}$PASS_COUNT passed${NC}, ${YELLOW}$WARN_COUNT warnings${NC}, ${RED}$FAIL_COUNT failed${NC}"
         echo ""
-        echo "After fixing, run 'acfs doctor' again to verify."
+
+        if [[ $FAIL_COUNT -eq 0 ]]; then
+            echo -e "${GREEN}All critical checks passed!${NC}"
+            echo ""
+            echo "Next: run 'onboard' to learn how to use your new setup"
+        else
+            echo -e "${RED}Some checks failed. Run the suggested fix commands.${NC}"
+            echo ""
+            echo "After fixing, run 'acfs doctor' again to verify."
+        fi
     fi
 }
 
@@ -410,12 +506,25 @@ main() {
             os_pretty="${PRETTY_NAME:-${ID:-unknown} ${VERSION_ID:-unknown}}"
         fi
 
-        echo ""
-        echo "ACFS Doctor v$ACFS_VERSION"
-        echo "User: $(whoami)"
-        echo "Mode: ${ACFS_MODE:-vibe}"
-        echo "OS: $os_pretty"
-        echo ""
+        if [[ "$HAS_GUM" == "true" ]]; then
+            echo ""
+            gum style \
+                --border rounded \
+                --border-foreground "$ACFS_PRIMARY" \
+                --padding "1 2" \
+                --margin "0 0 1 0" \
+                "$(gum style --foreground "$ACFS_ACCENT" --bold '🩺 ACFS Doctor') $(gum style --foreground "$ACFS_MUTED" "v$ACFS_VERSION")
+
+$(gum style --foreground "$ACFS_MUTED" "User:") $(gum style --foreground "$ACFS_TEAL" "$(whoami)")  $(gum style --foreground "$ACFS_MUTED" "Mode:") $(gum style --foreground "$ACFS_TEAL" "${ACFS_MODE:-vibe}")
+$(gum style --foreground "$ACFS_MUTED" "OS:") $(gum style --foreground "$ACFS_TEAL" "$os_pretty")"
+        else
+            echo ""
+            echo "ACFS Doctor v$ACFS_VERSION"
+            echo "User: $(whoami)"
+            echo "Mode: ${ACFS_MODE:-vibe}"
+            echo "OS: $os_pretty"
+            echo ""
+        fi
     fi
 
     check_identity

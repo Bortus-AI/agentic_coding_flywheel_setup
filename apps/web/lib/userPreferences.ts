@@ -86,21 +86,23 @@ export function isValidIP(ip: string): boolean {
 }
 
 // --- React Hooks for User Preferences ---
-// Using useState/useEffect instead of TanStack Query for reliable synchronous access
-// This avoids race conditions where redirects happen before async queries resolve
+// Using lazy state initialization instead of TanStack Query for reliable synchronous access
+// This avoids race conditions where redirects happen before async queries/effects resolve
 
 /**
  * Hook to get and set the user's operating system.
- * Uses useState/useEffect for reliable synchronous localStorage access.
+ * Uses lazy state initialization for synchronous localStorage access on first render.
+ * This avoids race conditions where redirects fire before async effects complete.
  */
 export function useUserOS(): [OperatingSystem | null, (os: OperatingSystem) => void] {
-  const [os, setOSState] = useState<OperatingSystem | null>(null);
-
-  // Read from localStorage on mount (intentional - SSR-safe pattern)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: localStorage is only available client-side
-    setOSState(getUserOS());
-  }, []);
+  // Lazy initialization reads localStorage synchronously on first client render
+  // Returns null on server (SSR-safe), actual value on client
+  const [os, setOSState] = useState<OperatingSystem | null>(() => {
+    if (typeof window !== "undefined") {
+      return getUserOS();
+    }
+    return null;
+  });
 
   const setOS = useCallback((newOS: OperatingSystem) => {
     setUserOS(newOS);
@@ -112,16 +114,18 @@ export function useUserOS(): [OperatingSystem | null, (os: OperatingSystem) => v
 
 /**
  * Hook to get and set the VPS IP address.
- * Uses useState/useEffect for reliable synchronous localStorage access.
+ * Uses lazy state initialization for synchronous localStorage access on first render.
+ * This avoids race conditions where redirects fire before async effects complete.
  */
 export function useVPSIP(): [string | null, (ip: string) => void] {
-  const [ip, setIPState] = useState<string | null>(null);
-
-  // Read from localStorage on mount (intentional - SSR-safe pattern)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: localStorage is only available client-side
-    setIPState(getVPSIP());
-  }, []);
+  // Lazy initialization reads localStorage synchronously on first client render
+  // Returns null on server (SSR-safe), actual value on client
+  const [ip, setIPState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return getVPSIP();
+    }
+    return null;
+  });
 
   const setIP = useCallback((newIP: string) => {
     if (setVPSIP(newIP)) {
@@ -149,20 +153,18 @@ export function useDetectedOS(): OperatingSystem | null {
 
 /**
  * Hook to track if the component is mounted (client-side hydrated).
- * Returns true once the component is mounted on the client.
+ * Returns true on client, false on server.
  *
- * Uses useState/useEffect instead of TanStack Query because:
- * 1. Mount detection is synchronous, not async data fetching
- * 2. TanStack Query introduces unnecessary latency on first render
- * 3. This pattern is more reliable and doesn't depend on query resolution
+ * Uses lazy state initialization for immediate detection on client.
+ * This avoids a flash of loading state on pages that check mounted status.
+ *
+ * Note: This intentionally causes a hydration mismatch (server: false, client: true)
+ * which React handles gracefully. This is the standard pattern for client-only content.
  */
 export function useMounted(): boolean {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: standard hydration detection pattern
-    setMounted(true);
-  }, []);
+  // Lazy initialization: returns true on client, false on server
+  // This allows immediate content rendering without waiting for useEffect
+  const [mounted] = useState(() => typeof window !== "undefined");
 
   return mounted;
 }
