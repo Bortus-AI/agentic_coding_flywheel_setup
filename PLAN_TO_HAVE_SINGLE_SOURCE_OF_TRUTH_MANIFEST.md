@@ -280,8 +280,14 @@ function shouldGenerateModule(module: Module): boolean {
   // Explicit opt-out
   if (module.generated === false) return false;
 
-  // Fail fast: a generated module must have at least one executable install step
-  if (module.install.every(isDescription)) {
+  // Fail fast: a generated module must have at least one executable install step.
+  //
+  // NOTE: module.install may be empty when verified_installer is provided.
+  const hasExecutableInstall =
+    module.verified_installer != null ||
+    module.install.some((cmd) => !isDescription(cmd));
+
+  if (!hasExecutableInstall) {
     throw new Error(
       `Module ${module.id} has no executable install commands. ` +
       `Either provide real commands or set generated: false.`
@@ -289,7 +295,7 @@ function shouldGenerateModule(module: Module): boolean {
   }
 
   // Warn if any install step looks like prose (helps keep manifest clean)
-  if (module.install.some(isDescription)) {
+  if (module.install.length > 0 && module.install.some(isDescription)) {
     console.warn(
       `Warning: module ${module.id} contains description-like install steps. ` +
       `Prefer real commands or mark generated: false.`
@@ -874,14 +880,16 @@ function generateModuleFunction(module: Module): string {
   // Verification
   lines.push(`    # Verify`);
   for (const verify of module.verify) {
-    const verifyCmd = module.run_as === 'target_user'
-      ? `run_as_target ${verify}`
-      : verify;
+    const verifyRunner = module.run_as === 'target_user'
+      ? 'run_as_target_shell'
+      : module.run_as === 'root'
+        ? 'run_as_root_shell'
+        : 'run_as_current_shell';
 
     if (module.optional) {
-      lines.push(`    ${verifyCmd} || log_warn "$module_id verification skipped"`);
+      lines.push(`    ${verifyRunner} ${escapeForBash(verify)} || log_warn "$module_id verification skipped"`);
     } else {
-      lines.push(`    ${verifyCmd} || { log_error "$module_id verification failed"; return 1; }`);
+      lines.push(`    ${verifyRunner} ${escapeForBash(verify)} || { log_error "$module_id verification failed"; return 1; }`);
     }
   }
 
