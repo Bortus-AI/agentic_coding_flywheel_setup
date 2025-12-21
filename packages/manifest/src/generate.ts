@@ -60,6 +60,11 @@ if [[ -f "\$SCRIPT_DIR/../lib/install_helpers.sh" ]]; then
     source "\$SCRIPT_DIR/../lib/install_helpers.sh"
 fi
 
+# Source contract validation
+if [[ -f "\$SCRIPT_DIR/../lib/contract.sh" ]]; then
+    source "\$SCRIPT_DIR/../lib/contract.sh"
+fi
+
 # Optional security verification for upstream installer scripts.
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
@@ -454,8 +459,11 @@ function generateVerifyCommands(module: Module): string[] {
 
   for (const cmd of module.verify) {
     // Skip commands with || true at the end for required checks
-    const isOptional = cmd.includes('|| true');
-    const cleanCmd = cmd.replace(/\s*\|\|\s*true\s*$/, '').trim();
+    // Regex matches: optional whitespace, ||, optional whitespace, true, optional whitespace, optional comment, end of string
+    const optionalRegex = /\s*\|\|\s*true\s*(#.*)?$/;
+    const isOptional = optionalRegex.test(cmd);
+    const cleanCmd = cmd.replace(optionalRegex, '').trim();
+
     const blockLines = cleanCmd.includes('\n') || cleanCmd.startsWith('|')
       ? cleanCmd.replace(/^\|?\n?/, '').trim().split('\n')
       : [cleanCmd];

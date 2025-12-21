@@ -26,6 +26,11 @@ if [[ -f "$SCRIPT_DIR/../lib/install_helpers.sh" ]]; then
     source "$SCRIPT_DIR/../lib/install_helpers.sh"
 fi
 
+# Source contract validation
+if [[ -f "$SCRIPT_DIR/../lib/contract.sh" ]]; then
+    source "$SCRIPT_DIR/../lib/contract.sh"
+fi
+
 # Optional security verification for upstream installer scripts.
 # Scripts that need it should call: acfs_security_init
 ACFS_SECURITY_READY=false
