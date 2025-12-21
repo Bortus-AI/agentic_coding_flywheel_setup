@@ -17,22 +17,66 @@ export const ManifestDefaultsSchema = z.object({
 /**
  * Schema for a single module
  */
-export const ModuleSchema = z.object({
-  id: z
-    .string()
-    .min(1, 'Module ID cannot be empty')
-    .regex(
-      /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/,
-      'Module ID must be lowercase with dots (e.g., "shell.zsh", "lang.bun")'
-    ),
-  description: z.string().min(1, 'Description cannot be empty'),
-  install: z.array(z.string()).min(1, 'At least one install command required'),
-  verify: z.array(z.string()).min(1, 'At least one verify command required'),
-  notes: z.array(z.string()).optional(),
-  docs_url: z.string().url().optional(),
-  dependencies: z.array(z.string()).optional(),
-  aliases: z.array(z.string()).optional(),
-});
+const RunAsSchema = z.enum(['target_user', 'root', 'current']);
+
+export const ModuleSchema = z
+  .object({
+    id: z
+      .string()
+      .min(1, 'Module ID cannot be empty')
+      .regex(
+        /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/,
+        'Module ID must be lowercase with dots (e.g., "shell.zsh", "lang.bun")'
+      ),
+    description: z.string().min(1, 'Description cannot be empty'),
+
+    category: z.string().optional(),
+
+    // Execution context
+    run_as: RunAsSchema.default('target_user'),
+
+    // Verified installer reference
+    verified_installer: z
+      .object({
+        tool: z.string().min(1, 'Verified installer tool cannot be empty'),
+        runner: z.string().min(1, 'Verified installer runner cannot be empty'),
+        args: z.array(z.string()).default([]),
+      })
+      .optional(),
+
+    // Installation behavior
+    optional: z.boolean().default(false),
+    enabled_by_default: z.boolean().default(true),
+    installed_check: z
+      .object({
+        run_as: RunAsSchema.default('target_user'),
+        command: z.string().min(1, 'Installed check command cannot be empty'),
+      })
+      .optional(),
+    generated: z.boolean().default(true),
+
+    phase: z.number().int().min(1).max(10).optional(),
+
+    // Install steps are shell strings (executed via run_as_*_shell).
+    // Allow empty when verified_installer is provided.
+    install: z.array(z.string()).default([]),
+    verify: z.array(z.string()).min(1, 'At least one verify command required'),
+    dependencies: z.array(z.string()).optional(),
+    notes: z.array(z.string()).optional(),
+    tags: z.array(z.string()).optional(),
+    docs_url: z.string().url().optional(),
+    aliases: z.array(z.string()).optional(),
+  })
+  .refine(
+    (module) =>
+      module.generated === false ||
+      module.verified_installer != null ||
+      module.install.length > 0,
+    {
+      message:
+        'Module must define verified_installer or install commands (or set generated: false).',
+    }
+  );
 
 /**
  * Schema for the complete manifest

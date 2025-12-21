@@ -16,6 +16,33 @@ export interface ManifestDefaults {
 }
 
 /**
+ * Execution context for module commands
+ */
+export type RunAs = 'target_user' | 'root' | 'current';
+
+/**
+ * Verified upstream installer reference (curl|bash)
+ */
+export interface VerifiedInstaller {
+  /** Tool key in checksums.yaml */
+  tool: string;
+  /** Executable runner (e.g., bash, sh) */
+  runner: string;
+  /** Optional additional args for runner */
+  args?: string[];
+}
+
+/**
+ * Installed check command (run_as-aware)
+ */
+export interface InstalledCheck {
+  /** Execution context for the check */
+  run_as: RunAs;
+  /** Command to determine installed status */
+  command: string;
+}
+
+/**
  * A single module in the manifest
  * Modules represent installable tools, packages, or configurations
  */
@@ -24,12 +51,30 @@ export interface Module {
   id: string;
   /** Human-readable description of what this module provides */
   description: string;
+  /** Optional category grouping for generated layout */
+  category?: string;
+  /** Execution context for install/verify steps */
+  run_as: RunAs;
+  /** Verified upstream installer reference */
+  verified_installer?: VerifiedInstaller;
+  /** Controls whether install failures are warnings */
+  optional: boolean;
+  /** Controls default selection when filtering */
+  enabled_by_default: boolean;
+  /** Installed check used for skip-if-present logic */
+  installed_check?: InstalledCheck;
+  /** Skip generation if orchestration-only */
+  generated: boolean;
+  /** Phase number for ordering (1-10) */
+  phase?: number;
   /** Installation commands to run (shell commands or descriptions) */
   install: string[];
   /** Verification commands to check if installation succeeded */
   verify: string[];
   /** Optional notes about the module */
   notes?: string[];
+  /** Optional tags for higher-level selection */
+  tags?: string[];
   /** Optional documentation URL */
   docs_url?: string;
   /** Module IDs this module depends on */

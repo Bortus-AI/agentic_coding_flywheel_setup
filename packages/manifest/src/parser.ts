@@ -184,8 +184,11 @@ export function validateManifest(manifest: unknown): ValidationResult {
   const cycleErrors = detectDependencyCycles(data.modules);
   errors.push(...cycleErrors);
 
-  // Warnings for modules without verify commands that are just descriptions
+  // Warnings for modules with install steps that look like descriptions
   for (const module of data.modules) {
+    if (module.install.length === 0) {
+      continue;
+    }
     const hasRealInstall = module.install.some(
       (cmd) => !cmd.startsWith('"') && !cmd.includes('Ensure') && !cmd.includes('Install ')
     );

@@ -8,6 +8,7 @@
  *   bun run generate (from packages/manifest)
  */
 
+import { createHash } from 'node:crypto';
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,7 @@ import { parse as parseYaml } from 'yaml';
 import { parseManifestFile } from './parser.js';
 import {
   getCategories,
+  getModuleCategory,
   getModulesByCategory,
   sortModulesByInstallOrder,
 } from './utils.js';
@@ -76,6 +78,14 @@ acfs_security_init() {
 }
 `;
 
+const MANIFEST_INDEX_HEADER = `#!/usr/bin/env bash
+# ============================================================
+# AUTO-GENERATED FROM acfs.manifest.yaml - DO NOT EDIT
+# Regenerate: bun run generate (from packages/manifest)
+# ============================================================
+# Data-only manifest index. Safe to source.
+`;
+
 // ============================================================
 // Helpers
 // ============================================================
@@ -131,6 +141,75 @@ function escapeBash(str: string): string {
     .replace(/"/g, '\\"')    // Double quotes
     .replace(/\$/g, '\\$')   // Dollar sign (prevents variable expansion)
     .replace(/`/g, '\\`');   // Backticks (prevents command substitution)
+}
+
+function getModulePhase(module: Module): number {
+  return module.phase ?? 1;
+}
+
+function joinList(values?: string[]): string {
+  if (!values || values.length === 0) {
+    return '';
+  }
+  return values.join(',');
+}
+
+function computeManifestSha256(): string {
+  const content = readFileSync(MANIFEST_PATH);
+  return createHash('sha256').update(content).digest('hex');
+}
+
+function sortModulesByPhaseAndDependency(manifest: Manifest): Module[] {
+  const modulesById = new Map(manifest.modules.map((module) => [module.id, module]));
+  const modulesByPhase = new Map<number, Module[]>();
+
+  for (const module of manifest.modules) {
+    const phase = getModulePhase(module);
+    const group = modulesByPhase.get(phase);
+    if (group) {
+      group.push(module);
+    } else {
+      modulesByPhase.set(phase, [module]);
+    }
+  }
+
+  const phases = Array.from(modulesByPhase.keys()).sort((a, b) => a - b);
+  const ordered: Module[] = [];
+
+  for (const phase of phases) {
+    const phaseModules = modulesByPhase.get(phase) ?? [];
+    const phaseIds = new Set(phaseModules.map((module) => module.id));
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    function visit(moduleId: string): void {
+      if (visited.has(moduleId)) return;
+      if (visiting.has(moduleId)) return;
+
+      visiting.add(moduleId);
+
+      const module = modulesById.get(moduleId);
+      if (module?.dependencies) {
+        for (const depId of module.dependencies) {
+          if (phaseIds.has(depId)) {
+            visit(depId);
+          }
+        }
+      }
+
+      visiting.delete(moduleId);
+      if (module) {
+        visited.add(moduleId);
+        ordered.push(module);
+      }
+    }
+
+    for (const module of phaseModules) {
+      visit(module.id);
+    }
+  }
+
+  return ordered;
 }
 
 function isCurlPipeInstaller(cmd: string): boolean {
@@ -219,6 +298,69 @@ function generateVerifyCommands(module: Module): string[] {
 // ============================================================
 
 /**
+ * Generate manifest index script (data-only, deterministic)
+ */
+function generateManifestIndex(manifest: Manifest, manifestSha256: string): string {
+  const orderedModules = sortModulesByPhaseAndDependency(manifest);
+  const lines: string[] = [MANIFEST_INDEX_HEADER];
+
+  lines.push(`ACFS_MANIFEST_SHA256="${manifestSha256}"`);
+  lines.push('');
+
+  lines.push('ACFS_MODULES_IN_ORDER=(');
+  for (const module of orderedModules) {
+    lines.push(`  "${module.id}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push('declare -A ACFS_MODULE_PHASE=(');
+  for (const module of orderedModules) {
+    lines.push(`  ["${module.id}"]="${getModulePhase(module)}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push('declare -A ACFS_MODULE_DEPS=(');
+  for (const module of orderedModules) {
+    lines.push(`  ["${module.id}"]="${escapeBash(joinList(module.dependencies))}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push('declare -A ACFS_MODULE_FUNC=(');
+  for (const module of orderedModules) {
+    lines.push(`  ["${module.id}"]="${toFunctionName(module.id)}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push('declare -A ACFS_MODULE_CATEGORY=(');
+  for (const module of orderedModules) {
+    const category = module.category ?? getModuleCategory(module.id);
+    lines.push(`  ["${module.id}"]="${escapeBash(category)}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push('declare -A ACFS_MODULE_TAGS=(');
+  for (const module of orderedModules) {
+    lines.push(`  ["${module.id}"]="${escapeBash(joinList(module.tags))}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  lines.push('declare -A ACFS_MODULE_DEFAULT=(');
+  for (const module of orderedModules) {
+    lines.push(`  ["${module.id}"]="${module.enabled_by_default ? '1' : '0'}"`);
+  }
+  lines.push(')');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
  * Generate a category install script
  */
 function generateCategoryScript(manifest: Manifest, category: ModuleCategory): string {
@@ -238,6 +380,8 @@ function generateCategoryScript(manifest: Manifest, category: ModuleCategory): s
     const funcName = toFunctionName(module.id);
     lines.push(`# ${module.description}`);
     lines.push(`${funcName}() {`);
+    lines.push(`    local module_id="${module.id}"`);
+    lines.push('    acfs_require_contract "module:${module_id}" || return 1');
     lines.push(`    log_step "Installing ${module.id}"`);
     lines.push('');
 
@@ -418,6 +562,8 @@ async function main(): Promise<void> {
   console.log(`Categories: ${categories.join(', ')}`);
   console.log('');
 
+  const manifestSha256 = computeManifestSha256();
+
   // Validate checksum coverage for known upstream installers (fail closed).
   if (!existsSync(CHECKSUMS_PATH)) {
     console.error(`Missing required file: ${CHECKSUMS_PATH}`);
@@ -501,6 +647,21 @@ async function main(): Promise<void> {
       console.log(`[DRY-RUN] Would generate: ${filename}`);
     } else {
       writeFileSync(filepath, content, { mode: 0o755 });
+      console.log(`Generated: ${filename}`);
+      generatedFiles.push(filepath);
+    }
+  }
+
+  // Generate manifest index (data-only)
+  {
+    const filename = 'manifest_index.sh';
+    const filepath = join(OUTPUT_DIR, filename);
+    const content = generateManifestIndex(manifest, manifestSha256);
+
+    if (dryRun) {
+      console.log(`[DRY-RUN] Would generate: ${filename}`);
+    } else {
+      writeFileSync(filepath, content, { mode: 0o644 });
       console.log(`Generated: ${filename}`);
       generatedFiles.push(filepath);
     }
