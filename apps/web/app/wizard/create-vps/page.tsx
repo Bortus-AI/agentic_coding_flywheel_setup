@@ -417,6 +417,7 @@ export default function CreateVPSPage() {
               return (
                 <div className="space-y-2">
                   <input
+                    data-vps-ip-input
                     type="text"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}

@@ -66,7 +66,7 @@ export default function WizardLayout({
           const storedIP = getVPSIP();
           if (!storedIP) {
             // Scroll to the IP input section to draw attention
-            const ipInput = document.querySelector('input[placeholder*="192.168"]');
+            const ipInput = document.querySelector('[data-vps-ip-input]');
             if (ipInput) {
               ipInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
               (ipInput as HTMLElement).focus();
@@ -212,13 +212,13 @@ export default function WizardLayout({
             size="lg"
             onClick={() => prevStep && handleStepClick(prevStep.id)}
             disabled={!prevStep}
-            className="flex-1"
+            className={currentStep === 5 ? "w-full" : "flex-1"}
           >
             <ChevronLeft className="mr-1 h-5 w-5" />
             Back
           </Button>
           {/* Hide Next button on step 5 - page has its own validated Continue button */}
-          {currentStep !== 5 ? (
+          {currentStep !== 5 && (
             <Button
               size="lg"
               onClick={() => nextStep && handleStepClick(nextStep.id)}
@@ -228,8 +228,6 @@ export default function WizardLayout({
               Next
               <ChevronRight className="ml-1 h-5 w-5" />
             </Button>
-          ) : (
-            <div className="flex-1" />
           )}
         </div>
       </div>
