@@ -263,7 +263,7 @@ function WindowsContent() {
             <div className="space-y-4">
               <GuideStep number={1} title="Type the command">
                 In the Windows Terminal window, type exactly:
-                <code className="mt-2 block rounded bg-muted px-3 py-2 font-mono text-sm">
+                <code className="mt-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-sm">
                   ssh -V
                 </code>
                 <em className="mt-1 block text-xs">
@@ -278,7 +278,7 @@ function WindowsContent() {
 
               <GuideStep number={3} title="Check the result">
                 You should see something like:
-                <code className="mt-2 block rounded bg-muted px-3 py-2 font-mono text-sm">
+                <code className="mt-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-sm">
                   OpenSSH_for_Windows_8.6p1, LibreSSL 3.4.3
                 </code>
                 The exact numbers don&apos;t matter; as long as you see &quot;OpenSSH&quot;,

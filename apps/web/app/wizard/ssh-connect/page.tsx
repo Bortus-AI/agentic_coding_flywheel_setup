@@ -312,7 +312,7 @@ export default function SSHConnectPage() {
 
               <GuideStep number={6} title="You're connected!">
                 If successful, you&apos;ll see a new prompt like:
-                <code className="mt-2 block rounded bg-muted px-3 py-2 font-mono text-sm">
+                <code className="mt-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-sm">
                   ubuntu@vps:~$
                 </code>
                 The &quot;ubuntu@vps&quot; part means you&apos;re now controlling the VPS!

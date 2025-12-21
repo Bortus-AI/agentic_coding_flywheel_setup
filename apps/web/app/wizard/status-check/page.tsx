@@ -214,7 +214,7 @@ export default function StatusCheckPage() {
                   This usually means your shell config hasn&apos;t loaded yet. Run this command
                   to reload it:
                 </p>
-                <code className="mt-1 block rounded bg-muted px-2 py-1 font-mono text-xs">
+                <code className="mt-1 block overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">
                   source ~/.zshrc
                 </code>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export default function StatusCheckPage() {
                 <p className="text-sm text-muted-foreground">
                   You can try re-running the installer. It&apos;s safe to run multiple times:
                 </p>
-                <code className="mt-1 block rounded bg-muted px-2 py-1 font-mono text-xs">
+                <code className="mt-1 block overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">
                   curl -fsSL &quot;https://raw.githubusercontent.com/Dicklesworthstone/agentic_coding_flywheel_setup/main/install.sh&quot; | bash -s -- --yes --mode vibe
                 </code>
               </div>

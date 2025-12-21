@@ -278,7 +278,7 @@ export default function GenerateSSHKeyPage() {
               <br /><br />
               <strong>&quot;Permission denied&quot;:</strong> Try this command first, then run the
               ssh-keygen command again:
-              <code className="my-2 block rounded bg-muted px-3 py-2 font-mono text-xs">
+              <code className="my-2 block overflow-x-auto rounded bg-muted px-3 py-2 font-mono text-xs">
                 mkdir -p ~/.ssh && chmod 700 ~/.ssh
               </code>
               <strong>&quot;File already exists&quot;:</strong> You already have a key! You can
