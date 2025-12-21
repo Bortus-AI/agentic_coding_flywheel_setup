@@ -1030,48 +1030,93 @@ usage() {
     cat << 'EOF'
 acfs update - Update all ACFS components
 
-Usage:
-  acfs update [options]
+USAGE:
+  acfs-update [options]
+  acfs update [options]    (if acfs wrapper is installed)
 
-Options:
-  --apt-only         Only update system packages
-  --agents-only      Only update coding agents
-  --cloud-only       Only update cloud CLIs
-  --shell-only       Only update shell tools (omz, p10k, plugins, atuin, zoxide)
-  --stack            Include Dicklesworthstone stack updates
-  --no-apt           Skip apt updates
-  --no-agents        Skip agent updates
+CATEGORY OPTIONS (select what to update):
+  --apt-only         Only update system packages (apt)
+  --agents-only      Only update coding agents (Claude, Codex, Gemini)
+  --cloud-only       Only update cloud CLIs (Wrangler, Supabase, Vercel)
+  --shell-only       Only update shell tools (OMZ, P10K, plugins, Atuin, Zoxide)
+  --stack            Include Dicklesworthstone stack tools (default: disabled)
+
+SKIP OPTIONS (exclude categories from update):
+  --no-apt           Skip apt update/upgrade
+  --no-agents        Skip coding agent updates
   --no-cloud         Skip cloud CLI updates
   --no-shell         Skip shell tool updates
-  --force            Install missing tools
-  --dry-run          Show what would be updated without making changes
-  --yes, -y          Non-interactive mode (skip all prompts)
-  --quiet, -q        Minimal output (only show errors)
-  --verbose, -v      Show more details
+
+BEHAVIOR OPTIONS:
+  --force            Install tools that are missing (not just update existing)
+  --dry-run          Preview changes without making them
+  --yes, -y          Non-interactive mode, skip all prompts
+  --quiet, -q        Minimal output, only show errors and summary
+  --verbose, -v      Show detailed output including command details
   --abort-on-failure Stop immediately on first failure
   --continue         Continue after failures (default)
-  --help, -h         Show this help
+  --help, -h         Show this help message
 
-Examples:
-  acfs update                  # Update apt, agents, and cloud CLIs
-  acfs update --stack          # Include stack tools
-  acfs update --agents-only    # Only update coding agents
-  acfs update --dry-run        # Preview changes
-  acfs update --yes --quiet    # Automated mode with minimal output
-  acfs update --abort-on-failure --stack  # Stop on first error
+EXAMPLES:
+  # Standard update (apt, shell, agents, cloud)
+  acfs-update
 
-What gets updated:
-  - System packages (apt update/upgrade)
-  - Bun runtime
-  - Coding agents (Claude, Codex, Gemini)
-  - Cloud CLIs (Wrangler, Supabase, Vercel)
-  - Rust toolchain
-  - uv (Python tools)
-  - Shell tools (Oh-My-Zsh, Powerlevel10k, plugins, Atuin, Zoxide)
-  - Dicklesworthstone stack (with --stack flag)
+  # Include Dicklesworthstone stack
+  acfs-update --stack
 
-Logs:
-  Update logs are saved to ~/.acfs/logs/updates/
+  # Only update agents
+  acfs-update --agents-only
+
+  # Update everything except apt (faster)
+  acfs-update --no-apt
+
+  # Preview what would be updated
+  acfs-update --dry-run
+
+  # Automated CI/cron mode
+  acfs-update --yes --quiet
+
+  # Strict mode: stop on first error
+  acfs-update --abort-on-failure --stack
+
+WHAT EACH CATEGORY UPDATES:
+  apt:      System packages via apt update && apt upgrade
+  shell:    Oh-My-Zsh, Powerlevel10k, zsh plugins (git pull)
+            Atuin, Zoxide (reinstall from upstream)
+  agents:   Claude Code (claude update)
+            Codex CLI (bun install -g @openai/codex@latest)
+            Gemini CLI (bun install -g @google/gemini-cli@latest)
+  cloud:    Wrangler, Supabase CLI, Vercel CLI (bun install -g @latest)
+  runtime:  Bun (bun upgrade), Rust (rustup update), uv (uv self update)
+  stack:    NTM, UBS, BV, CASS, CM, CAAM, SLB (re-run upstream installers)
+
+LOGS:
+  Update logs are saved to: ~/.acfs/logs/updates/
+  Log files are timestamped: YYYY-MM-DD-HHMMSS.log
+
+  Example: tail -f ~/.acfs/logs/updates/$(ls -1t ~/.acfs/logs/updates | head -1)
+
+ENVIRONMENT VARIABLES:
+  ACFS_HOME          Base directory for ACFS (default: ~/.acfs)
+  ACFS_VERSION       Override version string in logs
+
+TROUBLESHOOTING:
+  - If apt is locked: wait for other package operations or run:
+    sudo rm /var/lib/dpkg/lock-frontend && sudo dpkg --configure -a
+
+  - If an agent update fails: try running the update command directly:
+    claude update
+    bun install -g @openai/codex@latest
+
+  - If shell tools fail to update: check git remote access:
+    git -C ~/.oh-my-zsh remote -v
+
+  - View recent logs:
+    ls -lt ~/.acfs/logs/updates/ | head -5
+    cat ~/.acfs/logs/updates/LATEST_LOG_FILE
+
+  - Force reinstall a specific tool:
+    acfs-update --force --agents-only
 EOF
 }
 

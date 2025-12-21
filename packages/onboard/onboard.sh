@@ -2,12 +2,12 @@
 #
 # onboard - ACFS Interactive Onboarding TUI
 #
-# Teaches users the ACFS workflow through 8 interactive lessons.
+# Teaches users the ACFS workflow through 9 interactive lessons.
 # Uses gum for TUI elements with fallback to basic bash menus.
 #
 # Usage:
 #   onboard           # Launch interactive menu
-#   onboard lesson N  # Jump to lesson N (0-7)
+#   onboard lesson N  # Jump to lesson N (0-8)
 #   onboard reset     # Reset progress
 #   onboard status    # Show completion status
 #
@@ -35,7 +35,7 @@ for candidate in \
     fi
 done
 
-# Lesson titles (indexed 0-7)
+# Lesson titles (indexed 0-8)
 declare -a LESSON_TITLES=(
     "Welcome & Overview"
     "Linux Navigation"
@@ -45,9 +45,10 @@ declare -a LESSON_TITLES=(
     "NTM Command Center"
     "NTM Prompt Palette"
     "The Flywheel Loop"
+    "Keeping Updated"
 )
 
-# Lesson files (indexed 0-7)
+# Lesson files (indexed 0-8)
 declare -a LESSON_FILES=(
     "00_welcome.md"
     "01_linux_basics.md"
@@ -57,6 +58,7 @@ declare -a LESSON_FILES=(
     "05_ntm_core.md"
     "06_ntm_command_palette.md"
     "07_flywheel_loop.md"
+    "08_keeping_updated.md"
 )
 
 # Colors (works in most terminals) - fallback if gum_ui not loaded
@@ -154,7 +156,7 @@ mark_completed() {
         tmp=$(mktemp)
         jq --argjson lesson "$lesson" '
             .completed = (.completed + [$lesson] | unique | sort) |
-            .current = (if $lesson < 7 then $lesson + 1 else $lesson end) |
+            .current = (if $lesson < 8 then $lesson + 1 else $lesson end) |
             .last_accessed = now | todate
         ' "$PROGRESS_FILE" > "$tmp" && mv "$tmp" "$PROGRESS_FILE"
     else
@@ -509,7 +511,7 @@ show_status() {
             --border-foreground "$ACFS_ACCENT" \
             --padding "1 2" \
             --margin "0 0 1 0" \
-            "$(gum style --foreground "$ACFS_PINK" --bold "📊 Progress: $completed_count/8 lessons")
+            "$(gum style --foreground "$ACFS_PINK" --bold "📊 Progress: $completed_count/9 lessons")
 
 $(gum style --foreground "$ACFS_PRIMARY" "$bar") $(gum style --foreground "$ACFS_SUCCESS" --bold "$percent%")"
 
@@ -546,7 +548,7 @@ $(gum style --foreground "$ACFS_PRIMARY" "$bar") $(gum style --foreground "$ACFS
         echo ""
         gum confirm --affirmative "Continue" --negative "" "Ready to continue?" || true
     else
-        echo -e "${BOLD}Progress: $completed_count/8 lessons completed${NC}"
+        echo -e "${BOLD}Progress: $completed_count/9 lessons completed${NC}"
         echo ""
 
         # Progress bar
@@ -631,8 +633,8 @@ main_menu() {
 # Handle command line arguments
 case "${1:-}" in
     lesson)
-        if [[ -z "${2:-}" ]] || ! [[ "$2" =~ ^[0-7]$ ]]; then
-            echo "Usage: onboard lesson N (where N is 0-7)"
+        if [[ -z "${2:-}" ]] || ! [[ "$2" =~ ^[0-8]$ ]]; then
+            echo "Usage: onboard lesson N (where N is 0-8)"
             exit 1
         fi
         init_progress
@@ -655,7 +657,7 @@ ACFS Onboarding Tutorial
 
 Usage:
   onboard           Launch interactive menu
-  onboard lesson N  Jump to lesson N (0-7)
+  onboard lesson N  Jump to lesson N (0-8)
   onboard reset     Reset all progress
   onboard status    Show completion status
   onboard --help    Show this help

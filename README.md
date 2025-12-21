@@ -509,15 +509,16 @@ The installer uses semantic colors for progress visibility:
 
 ## The Update Command
 
-After installation, keeping tools current is handled by `acfs update`. It provides a unified interface for updating all installed components.
+After installation, keeping tools current is handled by `acfs-update`. It provides a unified interface for updating all installed components.
 
 ### Usage
 
 ```bash
-acfs update                  # Update apt, agents, and cloud CLIs
-acfs update --stack          # Include Dicklesworthstone stack tools
-acfs update --agents-only    # Only update coding agents
-acfs update --dry-run        # Preview changes without making them
+acfs-update                  # Update apt, shell, agents, and cloud CLIs
+acfs-update --stack          # Include Dicklesworthstone stack tools
+acfs-update --agents-only    # Only update coding agents
+acfs-update --dry-run        # Preview changes without making them
+acfs-update --yes --quiet    # Automated/CI mode with minimal output
 ```
 
 ### What Gets Updated
@@ -525,26 +526,54 @@ acfs update --dry-run        # Preview changes without making them
 | Category | Tools | Method |
 |----------|-------|--------|
 | **System** | apt packages | `apt update && apt upgrade` |
+| **Shell** | OMZ, P10K, plugins | `git pull` on each repo |
+| **Shell** | Atuin, Zoxide | Re-run upstream installers |
 | **Runtime** | Bun | `bun upgrade` |
-| **Agents** | Claude, Codex, Gemini | `claude update`, `bun install -g` |
+| **Runtime** | Rust | `rustup update stable` |
+| **Runtime** | uv (Python) | `uv self update` |
+| **Agents** | Claude Code | `claude update` |
+| **Agents** | Codex, Gemini | `bun install -g @latest` |
 | **Cloud** | Wrangler, Supabase, Vercel | `bun install -g @latest` |
-| **Rust** | rustc, cargo | `rustup update stable` |
-| **Python** | uv | `uv self update` |
 | **Stack** | ntm, slb, ubs, etc. | Re-run upstream installers |
 
 ### Options
 
+**Category Selection:**
 ```bash
 --apt-only       Only update system packages
 --agents-only    Only update coding agents
 --cloud-only     Only update cloud CLIs
+--shell-only     Only update shell tools (OMZ, P10K, plugins, Atuin, Zoxide)
 --stack          Include Dicklesworthstone stack (disabled by default)
+```
+
+**Skip Categories:**
+```bash
 --no-apt         Skip apt updates
 --no-agents      Skip agent updates
 --no-cloud       Skip cloud CLI updates
---force          Install missing tools
---dry-run        Show what would be updated
---verbose        Show command details
+--no-shell       Skip shell tool updates
+```
+
+**Behavior:**
+```bash
+--force            Install missing tools (not just update existing)
+--dry-run          Preview changes without making them
+--yes, -y          Non-interactive mode (skip prompts)
+--quiet, -q        Minimal output (only errors and summary)
+--verbose, -v      Show detailed command output
+--abort-on-failure Stop on first failure (default: continue)
+```
+
+### Logs
+
+Update logs are automatically saved to `~/.acfs/logs/updates/` with timestamps:
+```bash
+# View most recent log
+cat ~/.acfs/logs/updates/$(ls -1t ~/.acfs/logs/updates | head -1)
+
+# Follow a running update
+tail -f ~/.acfs/logs/updates/$(ls -1t ~/.acfs/logs/updates | head -1)
 ```
 
 ### Why Separate from the Installer?
@@ -554,12 +583,13 @@ The installer transforms a fresh VPS. The update command maintains an existing i
 - **Dry-run previews**: See what would change before committing
 - **Skip flags**: Temporarily exclude categories that are working fine
 - **Stack control**: The full stack reinstallation is opt-in (it's slow)
+- **Automated updates**: Run via cron with `--yes --quiet`
 
 ---
 
 ## Interactive Onboarding
 
-After installation, users can learn the ACFS workflow through an interactive tutorial system. The onboarding TUI guides users through 8 lessons covering Linux basics through full agentic workflows.
+After installation, users can learn the ACFS workflow through an interactive tutorial system. The onboarding TUI guides users through 9 lessons covering Linux basics through full agentic workflows.
 
 ### Running Onboarding
 
@@ -582,6 +612,7 @@ onboard --reset        # Reset progress and start fresh
 | 5 | NTM Core | 7 min | Named Tmux Manager basics |
 | 6 | NTM Prompt Palette | 5 min | Command palette features |
 | 7 | Flywheel Loop | 8 min | Complete agentic workflow |
+| 8 | Keeping Updated | 4 min | Using `acfs-update`, troubleshooting |
 
 ### Progress Tracking
 
@@ -985,16 +1016,25 @@ normalize_user()           # Full normalization sequence
 
 ### `update.sh`
 
-Component update logic:
+Component update logic with version tracking and logging:
 
 ```bash
-update_apt()       # apt update/upgrade
-update_bun()       # bun upgrade
-update_agents()    # Claude, Codex, Gemini
+update_apt()       # apt update/upgrade with lock detection
+update_bun()       # bun upgrade with version tracking
+update_agents()    # Claude, Codex, Gemini (version before/after)
 update_cloud()     # Wrangler, Supabase, Vercel
-update_rust()      # rustup update
+update_rust()      # rustup update stable
 update_uv()        # uv self update
+update_go()        # Go toolchain update
+update_shell()     # OMZ, P10K, plugins, Atuin, Zoxide
 update_stack()     # Dicklesworthstone stack tools
+
+# Features:
+# - Automatic logging to ~/.acfs/logs/updates/
+# - Version tracking (before/after for each tool)
+# - APT lock detection and warning
+# - Reboot-required detection for kernel updates
+# - Dry-run mode with --dry-run flag
 ```
 
 ### `gum_ui.sh`
