@@ -140,7 +140,7 @@ ACFS is built around a **single source of truth**: the manifest file. Everything
                     │
                     ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
-│                         GENERATED OUTPUTS                                  │
+│                     GENERATED OUTPUTS (REFERENCE)                          │
 │  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐   │
 │  │ scripts/generated/ │  │ doctor_checks.sh   │  │ install_all.sh     │   │
 │  │ 11 Category Scripts│  │ Verification Logic │  │ Master Installer   │   │
@@ -151,6 +151,7 @@ ACFS is built around a **single source of truth**: the manifest file. Everything
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                            INSTALLER                                       │
 │  install.sh + scripts/lib/*.sh + checksums.yaml (SHA256 verification)     │
+│  (scripts/generated/* are not invoked by install.sh yet)                   │
 └───────────────────────────────────────────────────────────────────────────┘
                     │
                     ▼
@@ -165,14 +166,14 @@ ACFS is built around a **single source of truth**: the manifest file. Everything
 
 ### Why This Architecture?
 
-**Single Source of Truth**: The manifest file (`acfs.manifest.yaml`) defines every tool—its name, description, install commands, and verification logic. When you add a tool to the manifest, the generator automatically creates the installer function, doctor check, and updates the master script. No manual synchronization required.
+**Single Source of Truth**: The manifest file (`acfs.manifest.yaml`) defines every tool—its name, description, install commands, and verification logic. When you add or edit a tool in the manifest, the generator automatically updates the generated scripts and manifest-derived checks. The production one-liner installer (`install.sh`) is still hand-written today, so behavior changes may also require updating `install.sh` until full migration.
 
 **TypeScript + Zod Validation**: The manifest parser uses Zod schemas to validate the YAML at parse time. Typos, missing fields, and structural errors are caught immediately during generation—not at runtime on a user's VPS when the installer fails halfway through.
 
 **Generated Scripts**: Rather than hand-maintaining 11 category installer scripts and keeping them synchronized, the generator produces them from the manifest. This means:
-- No drift between the manifest and actual install logic
+- A consistent, auditable view of manifest-defined install logic (some modules intentionally emit TODOs)
 - Consistent error handling and logging across all modules
-- Changes propagate automatically
+- A clear path toward future installer integration
 
 ### Components
 
@@ -183,7 +184,7 @@ ACFS is built around a **single source of truth**: the manifest file. Everything
 | **Website** | `apps/web/` | Next.js 16 + Tailwind 4 | Step-by-step wizard for beginners |
 | **Installer** | `install.sh` | Bash | One-liner bootstrap script |
 | **Lib Scripts** | `scripts/lib/` | Bash | Modular installer functions |
-| **Generated Scripts** | `scripts/generated/` | Bash | Auto-generated category installers |
+| **Generated Scripts** | `scripts/generated/` | Bash | Auto-generated category installers (not wired into `install.sh` yet) |
 | **Configs** | `acfs/` | Shell/Tmux configs | Files deployed to `~/.acfs/` |
 | **Onboarding** | `acfs/onboard/` | Bash + Markdown | Interactive tutorial system |
 | **Checksums** | `checksums.yaml` | YAML | SHA256 hashes for upstream installers |
@@ -247,7 +248,9 @@ The TypeScript generator (`packages/manifest/src/generate.ts`) reads the manifes
 3. **Master Installer** (`scripts/generated/install_all.sh`)
    - Sources all category scripts
    - Runs them in dependency order
-   - Single entry point for full installation
+   - Single entry point for running the generated installers
+
+> Note: The production one-liner installer (`install.sh`) does not invoke `scripts/generated/*` yet.
 
 To regenerate after manifest changes:
 
@@ -644,7 +647,7 @@ $ acfs doctor
 
 ### Generated Doctor Checks
 
-Doctor checks are generated from the manifest, ensuring they stay synchronized with what the installer actually installs. The generated `doctor_checks.sh` script contains all verification commands in a structured format.
+Doctor checks can be generated from the manifest (`scripts/generated/doctor_checks.sh`) to keep verification logic close to `acfs.manifest.yaml`. Today, the user-facing `acfs doctor` command is implemented in `scripts/lib/doctor.sh` and does not yet consume the generated `doctor_checks.sh` output.
 
 ### Options
 
