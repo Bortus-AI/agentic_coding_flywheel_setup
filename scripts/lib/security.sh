@@ -652,10 +652,22 @@ verify_all_installers_json() {
     local skipped=()
     local total=0
 
+    # Helper function to escape strings for JSON
+    _json_escape() {
+        local str="$1"
+        # Escape backslashes first, then other special characters
+        str="${str//\\/\\\\}"
+        str="${str//\"/\\\"}"
+        str="${str//$'\t'/\\t}"
+        str="${str//$'\r'/\\r}"
+        str="${str//$'\n'/\\n}"
+        echo -n "$str"
+    }
+
     for name in "${!KNOWN_INSTALLERS[@]}"; do
         local url="${KNOWN_INSTALLERS[$name]}"
         local expected="${LOADED_CHECKSUMS[$name]:-}"
-        ((total += 1))
+        total=$((total + 1))
 
         if [[ -z "$expected" ]]; then
             skipped+=("{\"name\":\"$name\",\"reason\":\"no checksum recorded\"}")
@@ -667,11 +679,9 @@ verify_all_installers_json() {
         actual=$(fetch_checksum "$url" 2>&1) || fetch_error="$actual"
 
         if [[ -n "$fetch_error" ]]; then
-            # Escape special characters in error message for JSON
-            fetch_error="${fetch_error//\\/\\\\}"
-            fetch_error="${fetch_error//\"/\\\"}"
-            fetch_error="${fetch_error//$'\n'/\\n}"
-            errors+=("{\"name\":\"$name\",\"url\":\"$url\",\"error\":\"$fetch_error\"}")
+            local escaped_error
+            escaped_error=$(_json_escape "$fetch_error")
+            errors+=("{\"name\":\"$name\",\"url\":\"$url\",\"error\":\"$escaped_error\"}")
         elif [[ "$actual" == "$expected" ]]; then
             matches+=("{\"name\":\"$name\",\"checksum\":\"$expected\"}")
         else
