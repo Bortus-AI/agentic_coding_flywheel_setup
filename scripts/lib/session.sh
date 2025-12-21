@@ -501,3 +501,155 @@ get_workspace_sessions() {
 
     cass search "*" --workspace "$workspace" --limit "$limit" --json 2>/dev/null
 }
+
+# ============================================================
+# SESSION EXPORT
+# ============================================================
+
+# Export a session file with sanitization
+# Usage: export_session <session_path> [--format json|markdown] [--sanitize] [--output FILE]
+# Returns: Exported content to stdout (or file if --output specified)
+export_session() {
+    local session_path=""
+    local format="json"
+    local sanitize=true
+    local output_file=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --no-sanitize)
+                sanitize=false
+                shift
+                ;;
+            --output|-o)
+                output_file="$2"
+                shift 2
+                ;;
+            -*)
+                log_warn "Unknown option: $1"
+                shift
+                ;;
+            *)
+                session_path="$1"
+                shift
+                ;;
+        esac
+    done
+
+    # Validate session path
+    if [[ -z "$session_path" ]]; then
+        log_error "Session path required"
+        log_info "Usage: export_session <session_path> [--format json|markdown]"
+        log_info "Find sessions with: cass search \"<query>\" or list_sessions"
+        return 1
+    fi
+
+    if [[ ! -f "$session_path" ]]; then
+        log_error "Session file not found: $session_path"
+        return 1
+    fi
+
+    # Check CASS is installed
+    if ! check_cass_installed; then
+        log_error "CASS not installed"
+        return 1
+    fi
+
+    # Export via CASS
+    local exported
+    exported=$(cass export "$session_path" --format "$format" 2>/dev/null)
+
+    if [[ -z "$exported" ]]; then
+        log_error "Failed to export session: $session_path"
+        return 1
+    fi
+
+    # Apply sanitization if requested (and format is json)
+    if [[ "$sanitize" == "true" && "$format" == "json" ]]; then
+        # Create temp file for sanitization
+        local tmpfile
+        tmpfile=$(mktemp)
+        echo "$exported" > "$tmpfile"
+
+        # Apply sanitization
+        if sanitize_session_export "$tmpfile"; then
+            exported=$(cat "$tmpfile")
+        else
+            log_warn "Sanitization failed, returning unsanitized export"
+        fi
+        rm -f "$tmpfile"
+    elif [[ "$sanitize" == "true" && "$format" != "json" ]]; then
+        # For non-JSON formats, apply text sanitization
+        exported=$(sanitize_content "$exported")
+    fi
+
+    # Output
+    if [[ -n "$output_file" ]]; then
+        echo "$exported" > "$output_file"
+        log_success "Exported to: $output_file"
+    else
+        echo "$exported"
+    fi
+}
+
+# Find and export the most recent session in a workspace
+# Usage: export_recent_session [workspace] [--format json|markdown]
+export_recent_session() {
+    local workspace="${1:-$(pwd)}"
+    local format="${2:-json}"
+
+    if ! check_cass_installed; then
+        log_error "CASS not installed"
+        return 1
+    fi
+
+    # Find the most recent session file in the workspace
+    local recent_session
+    recent_session=$(cass search "*" --workspace "$workspace" --limit 1 --json 2>/dev/null | jq -r '.hits[0].source_path // empty')
+
+    if [[ -z "$recent_session" ]]; then
+        log_error "No sessions found for workspace: $workspace"
+        return 1
+    fi
+
+    export_session "$recent_session" --format "$format"
+}
+
+# Convert CASS export JSON to our schema format
+# Usage: convert_to_acfs_schema <cass_json>
+# Returns: ACFS-schema JSON to stdout
+convert_to_acfs_schema() {
+    local cass_json="$1"
+
+    echo "$cass_json" | jq '
+        {
+            schema_version: 1,
+            exported_at: (now | todate),
+            session_id: (.[0].sessionId // "unknown"),
+            agent: (.[0].agentId // "unknown"),
+            model: (.[0].message.model // "unknown"),
+            summary: "Exported session",
+            duration_minutes: 0,
+            stats: {
+                turns: (length // 0),
+                files_created: 0,
+                files_modified: 0,
+                commands_run: 0
+            },
+            outcomes: [],
+            key_prompts: [],
+            sanitized_transcript: [
+                .[] | {
+                    role: .message.role,
+                    content: (if .message.content | type == "string" then .message.content else (.message.content[0].text // "") end),
+                    timestamp: .timestamp
+                }
+            ]
+        }
+    ' 2>/dev/null
+}
