@@ -40,7 +40,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "A vCPU (virtual CPU) is the CPU capacity allocated to your cloud server. Cloud providers run many virtual servers on one big physical machine and assign each server a certain number of vCPUs. A good mental model is: one vCPU lets your server make real progress on one CPU-heavy stream of work at a time. Add more vCPUs and the server can make progress on more things in parallel (multiple programs, builds, searches, or multiple AI sessions) instead of constantly taking turns. On most VPS plans the underlying machine is shared, so the exact speed of a single vCPU varies, but the vCPU count is still the clearest signal for how much parallel work the server can keep moving.",
     analogy: "Think of it like staffing on a case. One person can draft one document at a time. Four people can draft four documents in parallel. The work may still be in the same office building (shared hardware), but your staffing level (vCPU count) determines how many separate tasks can move forward at once.",
     why: "vCPUs matter most when you want parallelism: multiple agents working at the same time, plus background work like tests, builds, indexing, and search. If you mostly run one agent and lightweight commands, fewer vCPUs feel fine. If you want several agents working simultaneously (or you do lots of builds/tests), more vCPUs keeps the machine responsive.",
-    related: ["ram", "vps", "nvme"],
+    related: ["ram", "vps", "nvme-ssd"],
   },
 
   ram: {
@@ -49,7 +49,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "RAM (Random Access Memory) is your computer's short-term memory, measured in gigabytes (GB). Unlike your hard drive which stores files permanently (your photos, documents, and programs stay there even when power is off), RAM holds data that programs are actively using right now. When you open an application, it loads from permanent storage into RAM for fast access because RAM is much faster to read from. More RAM means you can run more programs simultaneously without slowdowns. When you close a program, its RAM is freed up for other uses; when you shut down, RAM is completely erased because it requires constant power to hold data. That's why you have to save your work before shutting down: anything only in RAM disappears.",
     analogy: "RAM is like your desk space while working. A bigger desk (more RAM) lets you spread out more documents and work on multiple things without constantly putting papers away and getting new ones from the filing cabinet. Your filing cabinet (the hard drive or SSD) stores everything permanently, but your desk is where active work happens. If your desk is too small, you spend all your time shuffling papers back and forth instead of actually working. Similarly, if you don't have enough RAM, your computer spends time constantly loading and unloading data, making everything feel sluggish.",
     why: "AI coding setups tend to run a lot at once: the agent, your editor, language tools, package installs, tests, and searches. If RAM runs out, the system uses disk as overflow (called swap), which is much slower and makes everything feel laggy. A solid baseline is 16 GB. If you plan to run several agents at once or work in larger projects, 32 GB+ gives you breathing room.",
-    related: ["vcpu", "vps", "nvme"],
+    related: ["vcpu", "vps", "nvme-ssd"],
   },
 
   nvme: {
@@ -254,7 +254,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "Bun is a tool for working with JavaScript (the programming language that powers interactive websites). It does several things that traditionally required separate tools: it runs JavaScript code, it downloads and installs code libraries (called packages) that your project depends on, it combines multiple code files into one for deployment, and it runs tests to check your code works. The key selling point is speed: Bun can be 10-100 times faster than the traditional tools it replaces. Installing packages that took 30 seconds with the older tool (npm) takes 2 seconds with Bun. This speed comes from Bun being written in a low-level language (Zig) that runs very close to the hardware, while older tools are written in JavaScript itself.",
     analogy: "Imagine going to a shopping center where the grocery store, hardware store, and pharmacy are all different buildings with separate checkouts, versus a single mega-store where everything is under one roof with express checkouts. That's the difference between the traditional JavaScript tools and Bun. Same result, but much less time walking around and waiting in lines.",
     why: "Speed improvements compound. When installing packages takes 2 seconds instead of 30, you don't mind experimenting with new libraries. When tests run instantly, you run them more often and catch bugs earlier. Bun makes the whole development experience feel snappy and responsive. AI coding assistants use Bun behind the scenes for JavaScript work because it gets things done faster.",
-    related: ["uv", "node"],
+    related: ["uv", "node-js"],
   },
 
   uv: {
@@ -312,7 +312,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "Agentic AI goes beyond answering questions; it takes actions in the real world. Give it a goal ('fix this bug' or 'add a login page'), and it figures out the steps needed: read the relevant code, understand the problem, write a solution, test that it works, save the changes. This is a fundamental shift from AI as a question-answering tool to AI as a capable assistant that does work for you. The key difference is autonomy: instead of you making every decision and the AI just executing, the AI makes many intermediate decisions on its own. You stay in the loop for important choices, but the AI handles the routine problem-solving and execution.",
     analogy: "Traditional AI is like asking a knowledgeable friend for advice: 'What should I do about X?' They tell you, but you still have to do everything yourself. Agentic AI is like hiring a capable contractor: 'I want X done.' They figure out the steps, gather the materials, do the work, and come back with results. You're still the decision-maker, but you're operating at the level of goals rather than individual actions.",
     why: "Agentic AI is why this setup matters. Instead of spending hours writing code yourself with AI suggestions, you can describe what you want and let AI assistants build it while you focus on bigger-picture decisions. It's like having a team of skilled helpers who can execute while you direct. This doesn't mean you're not involved; you're deeply involved in deciding what to build and reviewing results, just not in every keystroke.",
-    related: ["ai-agents", "claude-code", "codex"],
+    related: ["ai-agents", "claude-code", "codex-cli"],
   },
 
   "ai-agents": {
@@ -321,7 +321,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "AI agents are programs that combine large AI models (the technology behind ChatGPT, Claude, etc.) with the ability to take actions in the real world: writing and modifying code, creating and editing files, running programs, searching the internet, and more. The word 'agent' emphasizes that these programs have agency; they can decide what to do next based on results, recover when something goes wrong, and pursue multi-step goals. For example, if you ask an AI agent to 'add user authentication to this application,' it might: search the codebase to understand its structure, decide which authentication approach fits best, write the necessary code across multiple files, test that it works, and report back with a summary. Each step involves decisions the agent makes independently.",
     analogy: "Regular AI is like a brilliant consultant who sits in a chair and answers questions. AI agents are like that same brilliant consultant, but now they can get up, walk around your office, use your computer, look through your files, and actually do work. They still need your guidance on what work to do, but they can execute tasks independently rather than just advising you on how to do them yourself.",
     why: "AI agents are the core of what this setup enables. Once your cloud server is configured with these tools, AI agents can work on your projects: writing code, fixing problems, running tests, and building features. You become like a manager directing a team, deciding priorities and reviewing work, rather than doing every task personally. This doesn't replace understanding what's being built; you're deeply involved in guiding and reviewing. But the agents handle execution.",
-    related: ["agentic", "claude-code", "codex", "gemini-cli"],
+    related: ["agentic", "claude-code", "codex-cli", "gemini-cli"],
   },
 
   "claude-code": {
@@ -330,7 +330,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "Claude Code is an AI coding assistant made by Anthropic (the company behind Claude). Unlike chatbot interfaces where you copy and paste code back and forth, Claude Code runs directly in your terminal and can read your project files, write new code, edit existing files, run programs to test things, and search the web for information. When you give it a task like 'add a password reset feature,' it explores your project to understand how it's structured, writes the necessary code across potentially multiple files, and can run tests to verify the changes work. It's designed for substantial tasks, not just quick questions. Claude Code asks for your permission before making changes, so you stay in control while it does the detailed work.",
     analogy: "Most AI chatbots are like texting a smart friend for coding advice: they give you suggestions, but you still have to do everything yourself. Claude Code is more like having a developer join a video call where they can see your screen and you can say 'go ahead and make that change.' They understand your project, make the edits directly, and you can review what they did. The difference is between receiving instructions and receiving completed work.",
     why: "Claude Code is one of the primary AI assistants in the Agent Flywheel setup. It's known for producing high-quality code and being able to handle complex, multi-step tasks. When you have substantial work to do (implementing features, fixing complex bugs, restructuring code), Claude Code can often complete it with minimal guidance. The installer sets it up so you can start using it immediately after setup completes.",
-    related: ["ai-agents", "codex", "gemini-cli", "agentic"],
+    related: ["ai-agents", "codex-cli", "gemini-cli", "agentic"],
   },
 
   codex: {
@@ -348,7 +348,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "Gemini CLI brings Google's Gemini AI model to your command line, giving you a third AI assistant alongside Claude Code and Codex. Like the others, it runs in your terminal and can help with coding questions, generate code, explain concepts, and assist with development tasks. Gemini is Google's AI system (the same technology behind Google's AI features), offering capabilities that sometimes differ from what Claude or GPT-4 provide. Having multiple AI assistants is like having multiple experts with different backgrounds; they might approach problems differently or have different knowledge.",
     analogy: "If Claude Code and Codex are two brilliant developers on your team, Gemini CLI is a third developer from a completely different company with a different training background. They've read different things, excel at different problems, and sometimes one will have an insight the others miss. Having all three available means you can get diverse perspectives.",
     why: "Different AI models genuinely have different strengths. Some are better at explaining complex concepts, some at generating creative solutions, some at careful analysis. The Agent Flywheel installs all three major AI assistants so you can choose the best one for each situation, or compare their approaches when facing a tricky problem.",
-    related: ["ai-agents", "claude-code", "codex"],
+    related: ["ai-agents", "claude-code", "codex-cli"],
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -535,7 +535,7 @@ export const jargonDictionary: Record<string, JargonTerm> = {
     long: "A runtime is the program that takes your code and actually runs it. Code files are just text; they don't do anything on their own. A runtime reads that text, understands what it means, and makes it happen. JavaScript code needs a JavaScript runtime (like Node.js or Bun) to run. Python code needs a Python runtime. Think of the runtime as a translator and executor: it reads your instructions in a programming language and translates them into actions the computer can actually perform.",
     analogy: "If your code is sheet music, the runtime is the musician who actually plays it. The sheet music just sits there being paper until a musician reads it and produces sound. Different musicians (runtimes) might play the same piece at different speeds or with different styles.",
     why: "Different runtimes have dramatically different speeds. Bun runs JavaScript about 3-10 times faster than Node.js for many tasks. The Agent Flywheel installs the fastest, most modern runtimes so your AI agents and tools operate as quickly as possible.",
-    related: ["bun", "node", "python"],
+    related: ["bun", "node-js", "python"],
   },
 
   llm: {

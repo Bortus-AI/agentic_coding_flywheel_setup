@@ -26,6 +26,11 @@ import {
   getPreviousLesson,
   useCompletedLessons,
 } from "@/lib/lessonProgress";
+import {
+  getStepBySlug,
+  TOTAL_STEPS as TOTAL_WIZARD_STEPS,
+  useCompletedSteps,
+} from "@/lib/wizardSteps";
 
 interface Props {
   lesson: Lesson;
@@ -119,9 +124,20 @@ function LessonSidebar({
 export function LessonContent({ lesson, content }: Props) {
   const router = useRouter();
   const [completedLessons, markComplete] = useCompletedLessons();
+  const [completedSteps] = useCompletedSteps();
   const isCompleted = completedLessons.includes(lesson.id);
   const prevLesson = getPreviousLesson(lesson.id);
   const nextLesson = getNextLesson(lesson.id);
+  const isWizardComplete = completedSteps.length === TOTAL_WIZARD_STEPS;
+
+  const wizardStepSlugByLesson: Record<string, string> = {
+    welcome: "launch-onboarding",
+    "ssh-basics": "ssh-connect",
+    "agent-commands": "accounts",
+  };
+  const wizardStepSlug = wizardStepSlugByLesson[lesson.slug] ?? "os-selection";
+  const wizardStep = getStepBySlug(wizardStepSlug);
+  const wizardStepTitle = wizardStep?.title ?? "Setup Wizard";
 
   const handleMarkComplete = () => {
     markComplete(lesson.id);
@@ -187,17 +203,29 @@ export function LessonContent({ lesson, content }: Props) {
                 <p className="mt-2 text-lg text-muted-foreground">
                   {lesson.description}
                 </p>
-                <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  <span>Need to revisit setup?</span>
-                  <Link
-                    href="/wizard/os-selection"
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    <Terminal className="h-4 w-4" />
-                    Open the Setup Wizard
-                  </Link>
-                </div>
               </div>
+
+              {!isWizardComplete && (
+                <Card className="mb-8 border-amber-500/30 bg-amber-500/10 p-4">
+                  <div className="flex items-start gap-3 text-sm">
+                    <Terminal className="mt-0.5 h-4 w-4 text-amber-500" />
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">
+                        Not set up yet?
+                      </p>
+                      <p className="text-muted-foreground">
+                        Complete the setup wizard first to get the most out of this lesson.
+                      </p>
+                      <Link
+                        href={`/wizard/${wizardStepSlug}`}
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        Go to {wizardStepTitle} →
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {/* Markdown content */}
               <article className="prose prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-2xl prose-h2:mt-8 prose-h2:text-xl prose-h3:text-lg prose-p:text-muted-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-lg prose-pre:border prose-pre:border-border/50 prose-pre:bg-muted/50 prose-li:text-muted-foreground">

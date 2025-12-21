@@ -383,6 +383,18 @@ export default function StatusCheckPage() {
               </div>
             </Link>
           </div>
+
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <Link href="/learn/flywheel-loop" className="flex items-center gap-3 text-sm">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <div>
+                <span className="font-medium text-foreground">Ready for the full workflow?</span>
+                <p className="text-muted-foreground">
+                  See the Flywheel Loop lesson to connect all the tools →
+                </p>
+              </div>
+            </Link>
+          </div>
         </div>
       </SimplerGuide>
 

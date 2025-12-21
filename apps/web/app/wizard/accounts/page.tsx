@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  BookOpen,
   Users,
   ExternalLink,
   Check,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   Terminal,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCard } from "@/components/alert-card";
@@ -353,6 +355,18 @@ export default function AccountsPage() {
             (Cmd+click on Mac, Ctrl+click on Windows). That way you can create
             multiple accounts quickly without losing your place here.
           </GuideTip>
+
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <Link href="/learn/agent-commands" className="flex items-center gap-3 text-sm">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <div>
+                <span className="font-medium text-foreground">Need help with agent logins?</span>
+                <p className="text-muted-foreground">
+                  See the Agent Commands lesson for auth tips and shortcuts →
+                </p>
+              </div>
+            </Link>
+          </div>
         </div>
       </SimplerGuide>
 
