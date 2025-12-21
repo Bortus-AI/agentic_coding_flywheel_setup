@@ -9,6 +9,7 @@ Transform the manifest system from "documentation that generates unused scripts"
 - **No outside contributors:** ACFS is maintained internally. Do not add contributing guides, “PRs welcome” language, or any workflow/documentation aimed at external contributors.
 - **`curl | bash` is the primary entrypoint:** The design must work when `install.sh` runs without a local checkout (i.e., `SCRIPT_DIR` may be empty).
 - **Generated scripts are libraries:** Generated `scripts/generated/*.sh` must be safely `source`-able (no global `set -euo pipefail`, no top-level side effects, and contract validation must `return`, not `exit`).
+- **Deterministic generation:** Generated scripts must not embed timestamps or non-deterministic content; CI drift checks require stable output for a given manifest input.
 
 ---
 
@@ -102,6 +103,13 @@ When users run ACFS via `curl … | bash`, there is **no local repository checko
 
 Generated scripts must assume they are being sourced from **local files** (either from a git checkout or from a bootstrap download directory).
 
+#### Pinning to a Single Git Ref (Reliability)
+
+If `ACFS_RAW` points at `.../main`, it is theoretically possible (rare, but real) to download a mismatched set of files if the branch updates during an install (e.g., install.sh from commit A, generated scripts from commit B). To make installs reproducible and avoid mid-run mismatches:
+
+- Prefer a **tag** or **commit SHA** in `ACFS_RAW` (e.g., `.../<tag>/...` or `.../<sha>/...`).
+- Optionally add an `ACFS_REF` variable (default: `main`) and set `ACFS_RAW="https://raw.githubusercontent.com/<owner>/<repo>/$ACFS_REF"`.
+
 ### Required Environment Variables
 
 Generated scripts expect these variables to be set by install.sh BEFORE sourcing:
@@ -122,7 +130,7 @@ ACFS_RAW="https://raw.githubusercontent.com/<owner>/<repo>/main"
 
 # Paths (local checkout vs curl|bash)
 SCRIPT_DIR="/path/to/installer"         # Directory containing install.sh (may be empty under curl|bash)
-ACFS_BOOTSTRAP_DIR="/tmp/acfs-bootstrap" # Local dir containing downloaded scripts when SCRIPT_DIR is empty
+ACFS_BOOTSTRAP_DIR="/tmp/acfs-bootstrap" # Local dir containing downloaded scripts when SCRIPT_DIR is empty (should be unique per run)
 ACFS_LIB_DIR="$ACFS_BOOTSTRAP_DIR/scripts/lib"
 ACFS_GENERATED_DIR="$ACFS_BOOTSTRAP_DIR/scripts/generated"
 ```
@@ -142,6 +150,8 @@ log_error "Message"               # Red error
 # Execution (provided by install.sh or a small scripts/lib helper)
 run_as_target <command>           # Run command as TARGET_USER
 run_as_target_shell "<cmd>"       # Run a shell string as TARGET_USER (supports pipes/heredocs)
+run_as_root_shell "<cmd>"         # Run a shell string as root (supports pipes/heredocs)
+run_as_current_shell "<cmd>"      # Run a shell string as current user (supports pipes/heredocs)
 command_exists_as_target <cmd>    # Check command exists in TARGET_USER environment
 command_exists <cmd>              # Check if command is in PATH
 
@@ -705,7 +715,8 @@ Each generated `install_<category>.sh` will contain:
 #!/usr/bin/env bash
 # AUTO-GENERATED FROM acfs.manifest.yaml - DO NOT EDIT
 # Regenerate: bun run --filter @acfs/manifest generate
-# Generated: 2025-12-21T12:00:00Z
+# Manifest SHA256: <sha256-of-acfs.manifest.yaml>
+# Generator: @acfs/manifest <version>
 
 # ============================================================
 # Environment Contract Validation
@@ -885,7 +896,7 @@ function generateModuleFunction(module: Module): string {
 
 - [ ] **3.1.1** Add `generateModuleFunction()` with run_as support
 - [ ] **3.1.2** Add `generateVerifiedInstallerCall()` for checksummed installers
-- [ ] **3.1.3** Add idempotent check generation
+- [ ] **3.1.3** Add installed_check generation (run_as-aware)
 - [ ] **3.1.4** Add optional module handling (warn vs error)
 - [ ] **3.1.5** Add DRY_RUN mode support
 - [ ] **3.1.6** Add module filtering support (--only/--skip)
@@ -896,7 +907,7 @@ function generateModuleFunction(module: Module): string {
 - [ ] **3.3.1** Add function name collision detection (fail-fast)
 - [ ] **3.3.2** Add `--validate` flag to generator (check manifest against checksums.yaml)
 - [ ] **3.3.3** Add `--diff` flag to show what would change in generated scripts
-- [ ] **3.3.4** Add timestamp and version to generated file headers
+- [ ] **3.3.4** Add deterministic metadata to generated file headers (manifest SHA256, generator version)
 
 **Deliverable:** Enhanced generator that produces install.sh-compatible scripts
 
@@ -934,7 +945,8 @@ bootstrap_sources_if_needed() {
 
   # curl|bash mode: download libs + generated scripts locally, then source those paths.
   : "${ACFS_RAW:?ACFS_RAW must be set when running via curl|bash}"
-  ACFS_BOOTSTRAP_DIR="${ACFS_BOOTSTRAP_DIR:-/tmp/acfs-bootstrap-$(date +%s)}"
+  # Make the bootstrap dir unique per run to avoid collisions.
+  ACFS_BOOTSTRAP_DIR="${ACFS_BOOTSTRAP_DIR:-/tmp/acfs-bootstrap-$(date +%s)-$RANDOM}"
   export ACFS_LIB_DIR="$ACFS_BOOTSTRAP_DIR/scripts/lib"
   export ACFS_GENERATED_DIR="$ACFS_BOOTSTRAP_DIR/scripts/generated"
   mkdir -p "$ACFS_LIB_DIR" "$ACFS_GENERATED_DIR"
@@ -943,6 +955,10 @@ bootstrap_sources_if_needed() {
   # Example:
   #   curl -fsSL "$ACFS_RAW/scripts/lib/logging.sh" -o "$ACFS_LIB_DIR/logging.sh"
   #   curl -fsSL "$ACFS_RAW/scripts/generated/install_lang.sh" -o "$ACFS_GENERATED_DIR/install_lang.sh"
+  #
+  # Reliability tips:
+  #   - Download to a temp file then rename (avoid sourcing partial downloads).
+  #   - Run `bash -n` on downloaded scripts before sourcing to catch truncation.
 }
 
 bootstrap_sources_if_needed
@@ -1033,11 +1049,14 @@ SKIP_MODULES=()
 run_as_target_shell() {
     local cmd="${1:-}"
     if [[ -n "$cmd" ]]; then
-        run_as_target bash -lc "set -o pipefail; $cmd"
-    else
-        # stdin mode (for heredocs)
-        run_as_target bash -lc "set -o pipefail; bash -s" < /dev/stdin
+        # NOTE: Only safe for simple one-liners; generator should prefer heredocs for multi-line scripts.
+        run_as_target bash -lc "set -euo pipefail; $cmd"
+        return $?
     fi
+
+    # stdin mode (for heredocs):
+    # Prepend strict-mode settings inside the script we execute so pipes inside the script are covered.
+    run_as_target bash -lc 'set -euo pipefail; (printf "%s\n" "set -euo pipefail"; cat) | bash -s'
 }
 
 # Run a shell string as root (install.sh usually ensures we're root already)
@@ -1045,16 +1064,17 @@ run_as_root_shell() {
     local cmd="${1:-}"
     if [[ -n "$cmd" ]]; then
         if [[ "$EUID" -eq 0 ]]; then
-            bash -lc "set -o pipefail; $cmd"
+            bash -lc "set -euo pipefail; $cmd"
         else
-            $SUDO bash -lc "set -o pipefail; $cmd"
+            $SUDO bash -lc "set -euo pipefail; $cmd"
         fi
+        return $?
+    fi
+
+    if [[ "$EUID" -eq 0 ]]; then
+        bash -lc 'set -euo pipefail; (printf "%s\n" "set -euo pipefail"; cat) | bash -s'
     else
-        if [[ "$EUID" -eq 0 ]]; then
-            bash -lc "set -o pipefail; bash -s" < /dev/stdin
-        else
-            $SUDO bash -lc "set -o pipefail; bash -s" < /dev/stdin
-        fi
+        $SUDO bash -lc 'set -euo pipefail; (printf "%s\n" "set -euo pipefail"; cat) | bash -s'
     fi
 }
 
@@ -1062,10 +1082,11 @@ run_as_root_shell() {
 run_as_current_shell() {
     local cmd="${1:-}"
     if [[ -n "$cmd" ]]; then
-        bash -lc "set -o pipefail; $cmd"
-    else
-        bash -lc "set -o pipefail; bash -s" < /dev/stdin
+        bash -lc "set -euo pipefail; $cmd"
+        return $?
     fi
+
+    bash -lc 'set -euo pipefail; (printf "%s\n" "set -euo pipefail"; cat) | bash -s'
 }
 
 # Check if a command exists in the target user's environment
