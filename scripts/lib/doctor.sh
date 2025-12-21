@@ -325,7 +325,13 @@ check_core_tools() {
     check_command "tool.tmux" "tmux" "tmux" "sudo apt install tmux"
     check_command "tool.rg" "ripgrep" "rg" "sudo apt install ripgrep"
     check_command "tool.gh" "GitHub CLI (gh)" "gh" "sudo apt-get install -y gh"
-    check_command "tool.sg" "ast-grep" "sg" "cargo install ast-grep"
+    check_command "tool.git_lfs" "Git LFS" "git-lfs" "sudo apt-get install -y git-lfs"
+    check_command "tool.rsync" "rsync" "rsync" "sudo apt-get install -y rsync"
+    check_command "tool.strace" "strace" "strace" "sudo apt-get install -y strace"
+    check_command "tool.lsof" "lsof" "lsof" "sudo apt-get install -y lsof"
+    check_command "tool.dig" "dig (dnsutils)" "dig" "sudo apt-get install -y dnsutils"
+    check_command "tool.nc" "nc (netcat-openbsd)" "nc" "sudo apt-get install -y netcat-openbsd"
+    check_command "tool.sg" "ast-grep" "sg" "cargo install ast-grep --locked"
 
     blank_line
 }

@@ -725,7 +725,7 @@ install_cli_tools() {
     fi
 
     log_detail "Installing required apt packages"
-    $SUDO apt-get install -y ripgrep tmux fzf direnv jq
+    $SUDO apt-get install -y ripgrep tmux fzf direnv jq git-lfs lsof dnsutils netcat-openbsd strace rsync
 
     # GitHub CLI (gh)
     if command_exists gh; then
@@ -736,6 +736,12 @@ install_cli_tools() {
         else
             log_fatal "Failed to install GitHub CLI (gh)"
         fi
+    fi
+
+    # Git LFS setup (best-effort: installs hooks config for the target user)
+    if command_exists git-lfs; then
+        log_detail "Configuring git-lfs for $TARGET_USER"
+        run_as_target git lfs install --skip-repo >/dev/null 2>&1 || true
     fi
 
     log_detail "Installing optional apt packages"
@@ -757,15 +763,31 @@ install_languages() {
     log_step "5/9" "Installing language runtimes..."
 
     # Bun (install as target user)
-    if [[ ! -d "$TARGET_HOME/.bun" ]]; then
+    local bun_bin="$TARGET_HOME/.bun/bin/bun"
+    if [[ ! -x "$bun_bin" ]]; then
         log_detail "Installing Bun for $TARGET_USER"
         acfs_run_verified_upstream_script_as_target "bun" "bash"
     fi
 
     # Rust (install as target user)
-    if [[ ! -d "$TARGET_HOME/.cargo" ]]; then
+    local cargo_bin="$TARGET_HOME/.cargo/bin/cargo"
+    if [[ ! -x "$cargo_bin" ]]; then
         log_detail "Installing Rust for $TARGET_USER"
         acfs_run_verified_upstream_script_as_target "rust" "sh" -y
+    fi
+
+    # ast-grep (sg) - required by UBS for syntax-aware scanning
+    if [[ ! -x "$TARGET_HOME/.cargo/bin/sg" ]]; then
+        if [[ -x "$cargo_bin" ]]; then
+            log_detail "Installing ast-grep (sg) via cargo"
+            if run_as_target "$cargo_bin" install ast-grep --locked; then
+                log_success "ast-grep installed"
+            else
+                log_fatal "Failed to install ast-grep (sg)"
+            fi
+        else
+            log_fatal "Cargo not found at $cargo_bin (cannot install ast-grep)"
+        fi
     fi
 
     # Go (system-wide)

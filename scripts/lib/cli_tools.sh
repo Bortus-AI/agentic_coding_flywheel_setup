@@ -27,6 +27,12 @@ APT_CLI_TOOLS=(
     direnv          # directory-specific env vars
     jq              # JSON processor
     gh              # GitHub CLI (auth, issues, PRs)
+    git-lfs         # Git LFS (large files)
+    rsync           # fast file sync/copy
+    lsof            # open files / ports debugging
+    dnsutils        # dig/nslookup for DNS debugging
+    netcat-openbsd  # nc for network debugging
+    strace          # syscall tracing
     htop            # process viewer (fallback for btop)
 )
 

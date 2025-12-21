@@ -56,7 +56,7 @@ modules:
   - id: cli.modern
     description: Modern CLI tools referenced by the zshrc intent
     install:
-      - sudo apt-get install -y ripgrep tmux fzf direnv jq gh
+      - sudo apt-get install -y ripgrep tmux fzf direnv jq gh git-lfs lsof dnsutils netcat-openbsd strace rsync
       - sudo apt-get install -y lsd || true
       - sudo apt-get install -y eza || true
       - sudo apt-get install -y bat || sudo apt-get install -y batcat || true
@@ -72,6 +72,12 @@ modules:
       - tmux -V
       - fzf --version
       - gh --version
+      - git-lfs version
+      - rsync --version
+      - strace --version
+      - command -v lsof
+      - command -v dig
+      - command -v nc
       - command -v lsd || command -v eza || true
 
   # ============================================================
@@ -132,7 +138,7 @@ modules:
   - id: tools.ast_grep
     description: ast-grep (used by UBS for syntax-aware scanning)
     install:
-      - ~/.cargo/bin/cargo install ast-grep
+      - ~/.cargo/bin/cargo install ast-grep --locked
     verify:
       - sg --version
 

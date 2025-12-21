@@ -102,7 +102,7 @@ install_tools_zoxide() {
 install_tools_ast_grep() {
     log_step "Installing tools.ast_grep"
 
-    ~/.cargo/bin/cargo install ast-grep
+    ~/.cargo/bin/cargo install ast-grep --locked
 
     # Verify
     sg --version || { log_error "Verify failed: tools.ast_grep"; return 1; }

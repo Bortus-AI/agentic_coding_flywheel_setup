@@ -50,7 +50,7 @@ acfs_security_init() {
 install_cli_modern() {
     log_step "Installing cli.modern"
 
-    sudo apt-get install -y ripgrep tmux fzf direnv jq gh
+    sudo apt-get install -y ripgrep tmux fzf direnv jq gh git-lfs lsof dnsutils netcat-openbsd strace rsync
     sudo apt-get install -y lsd || true
     sudo apt-get install -y eza || true
     sudo apt-get install -y bat || sudo apt-get install -y batcat || true
@@ -67,6 +67,12 @@ install_cli_modern() {
     tmux -V || { log_error "Verify failed: cli.modern"; return 1; }
     fzf --version || { log_error "Verify failed: cli.modern"; return 1; }
     gh --version || { log_error "Verify failed: cli.modern"; return 1; }
+    git-lfs version || { log_error "Verify failed: cli.modern"; return 1; }
+    rsync --version || { log_error "Verify failed: cli.modern"; return 1; }
+    strace --version || { log_error "Verify failed: cli.modern"; return 1; }
+    command -v lsof || { log_error "Verify failed: cli.modern"; return 1; }
+    command -v dig || { log_error "Verify failed: cli.modern"; return 1; }
+    command -v nc || { log_error "Verify failed: cli.modern"; return 1; }
     command -v lsd || command -v eza || log_warn "Optional: cli.modern verify skipped"
 
     log_success "cli.modern installed"
