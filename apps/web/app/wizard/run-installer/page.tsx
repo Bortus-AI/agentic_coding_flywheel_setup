@@ -178,6 +178,52 @@ export default function RunInstallerPage() {
         <span>Takes about 10-15 minutes depending on your VPS speed</span>
       </div>
 
+      {/* Command breakdown for curious users */}
+      <DetailsSection summary="What does this command actually do? (technical breakdown)">
+        <div className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            Here&apos;s what each part of the command means:
+          </p>
+          <div className="space-y-4 font-mono text-xs">
+            <div>
+              <code className="text-[oklch(0.75_0.18_195)]">curl -fsSL &quot;https://...&quot;</code>
+              <p className="mt-1 font-sans text-muted-foreground">
+                Downloads the script from GitHub.{" "}
+                <code className="text-foreground/80">-f</code> = fail silently on error,{" "}
+                <code className="text-foreground/80">-s</code> = silent mode,{" "}
+                <code className="text-foreground/80">-S</code> = show errors,{" "}
+                <code className="text-foreground/80">-L</code> = follow redirects.
+              </p>
+            </div>
+            <div>
+              <code className="text-[oklch(0.75_0.18_195)]">| bash</code>
+              <p className="mt-1 font-sans text-muted-foreground">
+                Pipes the downloaded script to bash (the shell) to run it.
+              </p>
+            </div>
+            <div>
+              <code className="text-[oklch(0.75_0.18_195)]">-s -- --yes</code>
+              <p className="mt-1 font-sans text-muted-foreground">
+                Passes <code className="text-foreground/80">--yes</code> to the script, meaning &quot;don&apos;t ask for confirmation, just install.&quot;
+              </p>
+            </div>
+            <div>
+              <code className="text-[oklch(0.75_0.18_195)]">--mode vibe</code>
+              <p className="mt-1 font-sans text-muted-foreground">
+                Tells the installer to use &quot;vibe&quot; mode — installs all the recommended tools for the agentic coding workflow.
+              </p>
+            </div>
+          </div>
+          <AlertCard variant="info" title="Is curl | bash safe?">
+            <p className="text-sm">
+              You&apos;re right to be cautious! Piping scripts directly to bash is only safe when you trust the source.
+              This script is <strong>fully open source</strong> — you can read every line before running it.
+              It only runs on your VPS, not your local computer.
+            </p>
+          </AlertCard>
+        </div>
+      </DetailsSection>
+
       {/* What it installs - collapsible */}
       <DetailsSection summary="What this command installs">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -256,15 +302,19 @@ export default function RunInstallerPage() {
 
               <GuideStep number={4} title="Wait patiently (10-15 minutes)">
                 The installation takes time because it&apos;s downloading and installing
-                many tools. You&apos;ll see progress messages like:
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li><code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">[1/8] Installing zsh...</code></li>
-                  <li><code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">[2/8] Installing bun...</code></li>
-                  <li>etc.</li>
-                </ul>
-                <br />
-                <strong>Don&apos;t close the terminal!</strong> Let it run until you see
-                &quot;Installation complete&quot;.
+                many tools. You&apos;ll see progress messages scroll by:
+                <OutputPreview title="What you'll see" className="mt-3">
+                  <p className="text-[oklch(0.72_0.19_145)]">[1/8] Installing zsh + oh-my-zsh...</p>
+                  <p className="text-[oklch(0.72_0.19_145)]">[2/8] Installing bun...</p>
+                  <p className="text-[oklch(0.72_0.19_145)]">[3/8] Installing development tools...</p>
+                  <p className="text-muted-foreground">... lots of download output ...</p>
+                  <p className="text-[oklch(0.72_0.19_145)]">[8/8] Installing AI coding agents...</p>
+                  <p className="text-[oklch(0.72_0.19_145)] font-medium mt-1">✔ Agent Flywheel installation complete!</p>
+                </OutputPreview>
+                <p className="mt-3">
+                  <strong>Don&apos;t close the terminal!</strong> Let it run until you see
+                  the green &quot;Installation complete&quot; message.
+                </p>
               </GuideStep>
             </div>
           </GuideSection>
