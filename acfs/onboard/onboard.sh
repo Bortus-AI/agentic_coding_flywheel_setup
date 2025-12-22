@@ -210,15 +210,26 @@ _get_current() {
 # Mark a lesson as completed
 _mark_completed() {
     local idx="$1"
+    local timestamp
+    timestamp="$(date -Iseconds)"
+    local total=${#LESSONS[@]}
 
     _init_progress
 
     if _has_jq; then
         local tmp
         tmp=$(mktemp)
-        jq --argjson idx "$idx" \
-            'if (.completed | index($idx)) then . else .completed += [$idx] end | .current = ($idx + 1)' \
-            "$PROGRESS_FILE" > "$tmp" && mv "$tmp" "$PROGRESS_FILE"
+        # Add lesson to completed array and record timestamp
+        # Also check if this completes all lessons and record completed_at
+        jq --argjson idx "$idx" --arg ts "$timestamp" --argjson total "$total" '
+            if (.completed | index($idx)) then .
+            else
+                .completed += [$idx] |
+                .current = ($idx + 1) |
+                .lesson_timestamps[$idx | tostring] = $ts |
+                if ((.completed | length) >= $total) then .completed_at = $ts else . end
+            end
+        ' "$PROGRESS_FILE" > "$tmp" && mv "$tmp" "$PROGRESS_FILE"
     else
         # Fallback: simple append (may have duplicates but that's okay)
         local completed
@@ -241,10 +252,19 @@ _mark_completed() {
             local json_array
             json_array=$(echo "$new_completed" | tr -s ' ' ',' | sed 's/^,//;s/,$//')
             local next=$((idx + 1))
+            # Count completed lessons
+            local completed_count
+            completed_count=$(echo "$new_completed" | wc -w | tr -d ' ')
+            # Add completed_at if all lessons done
+            local completed_at_line=""
+            if [[ $completed_count -ge $total ]]; then
+                completed_at_line="\"completed_at\": \"$timestamp\","
+            fi
             cat > "$PROGRESS_FILE" <<EOF
 {
   "completed": [$json_array],
   "current": $next,
+  $completed_at_line
   "started_at": "$(date -Iseconds)"
 }
 EOF
@@ -257,6 +277,95 @@ _reset_progress() {
     rm -f "$PROGRESS_FILE"
     _init_progress
     echo -e "${GREEN}Progress reset. Starting fresh!${NC}"
+}
+
+# Check if all lessons are completed
+_is_all_complete() {
+    local completed_count total
+    local progress_data
+    progress_data=$(_calc_progress)
+    completed_count=$(echo "$progress_data" | cut -d'|' -f1)
+    total=$(echo "$progress_data" | cut -d'|' -f2)
+
+    [[ "$completed_count" -eq "$total" ]] && [[ "$total" -gt 0 ]]
+}
+
+# ============================================================
+# Completion Certificate
+# ============================================================
+
+# Show final completion certificate when all lessons are done
+_show_completion_certificate() {
+    clear
+    echo ""
+
+    if _has_gum; then
+        gum style \
+            --border double \
+            --border-foreground "#f9e2af" \
+            --padding "1 3" \
+            --margin "1 2" \
+            "$(echo -e "          🏆 ACFS ONBOARDING COMPLETE! 🏆")"
+
+        echo ""
+        gum style \
+            --foreground "#a6e3a1" \
+            --padding "0 2" \
+            "Congratulations! You've completed all 9 lessons."
+
+        echo ""
+        echo -e "  ${BOLD}You're now ready to:${NC}"
+        echo -e "    ${GREEN}•${NC} Launch AI agents with ${CYAN}cc${NC}, ${CYAN}cod${NC}, ${CYAN}gmi${NC}"
+        echo -e "    ${GREEN}•${NC} Manage sessions with ${CYAN}ntm${NC}"
+        echo -e "    ${GREEN}•${NC} Search code with ${CYAN}rg${NC}"
+        echo -e "    ${GREEN}•${NC} Use the full flywheel workflow"
+        echo ""
+
+        gum style \
+            --border rounded \
+            --border-foreground "#89b4fa" \
+            --padding "1 2" \
+            --margin "0 2" \
+            "$(cat <<'NEXTSTEPS'
+Next steps:
+  • Run 'acfs info' for quick system reference
+  • Run 'acfs cheatsheet' for all commands
+  • Start building with 'cc' in any project folder
+
+Happy coding! 🚀
+NEXTSTEPS
+)"
+
+        echo ""
+        gum confirm "Return to menu?" && return 0
+    else
+        echo -e "${YELLOW}╔═════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}          ${BOLD}🏆 ACFS ONBOARDING COMPLETE! 🏆${NC}                   ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}╠═════════════════════════════════════════════════════════════╣${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}  ${GREEN}Congratulations!${NC} You've completed all 9 lessons.        ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}  ${BOLD}You're now ready to:${NC}                                     ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    ${GREEN}•${NC} Launch AI agents with ${CYAN}cc${NC}, ${CYAN}cod${NC}, ${CYAN}gmi${NC}              ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    ${GREEN}•${NC} Manage sessions with ${CYAN}ntm${NC}                        ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    ${GREEN}•${NC} Search code with ${CYAN}rg${NC}                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    ${GREEN}•${NC} Use the full flywheel workflow                    ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}╠═════════════════════════════════════════════════════════════╣${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}  ${BOLD}Next steps:${NC}                                              ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    • Run ${CYAN}acfs info${NC} for quick system reference            ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    • Run ${CYAN}acfs cheatsheet${NC} for all commands                ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}    • Start building with ${CYAN}cc${NC} in any project folder        ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}  ${GREEN}Happy coding! 🚀${NC}                                         ${YELLOW}║${NC}"
+        echo -e "${YELLOW}║${NC}                                                             ${YELLOW}║${NC}"
+        echo -e "${YELLOW}╚═════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        read -r -p "Press Enter to return to menu..." </dev/tty || true
+    fi
 }
 
 # ============================================================
@@ -314,15 +423,9 @@ _show_celebration() {
 
         local next=$((idx + 1))
         if (( next >= ${#LESSONS[@]} )); then
-            gum style \
-                --foreground "#a6e3a1" \
-                --bold \
-                "🏆 You've completed all lessons!"
-            echo ""
-            echo -e "  You're now ready to use the full ACFS workflow."
-            echo -e "  Run ${CYAN}acfs cheatsheet${NC} for quick command reference."
-            echo ""
-            gum confirm "Return to menu?" && return 0
+            # Show full completion certificate
+            _show_completion_certificate
+            return 0
         else
             local choice
             choice=$(gum choose \
@@ -357,13 +460,8 @@ _show_celebration() {
 
         local next=$((idx + 1))
         if (( next >= ${#LESSONS[@]} )); then
-            echo -e "${CYAN}|${NC}  ${GREEN}${BOLD}🏆 You've completed all lessons!${NC}"
-            echo -e "${CYAN}|${NC}"
-            echo -e "${CYAN}|${NC}  You're now ready to use the full ACFS workflow."
-            echo -e "${CYAN}|${NC}  Run ${CYAN}acfs cheatsheet${NC} for quick command reference."
-            echo -e "${CYAN}+-------------------------------------------------------------+${NC}"
-            echo ""
-            read -r -p "Press Enter to return to menu..." </dev/tty || true
+            # Show full completion certificate
+            _show_completion_certificate
             return 0
         else
             echo -e "${CYAN}|${NC}  ${BOLD}[Enter]${NC} Continue to next lesson"
