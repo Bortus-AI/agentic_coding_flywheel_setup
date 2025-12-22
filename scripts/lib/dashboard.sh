@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================
-# ACFS Dashboard - Static HTML Generation
+# ACFS Dashboard - Static HTML Generation & Serving
 #
-# Generates a local HTML dashboard using `acfs info --html`.
+# Generates a local HTML dashboard using `acfs info --html`
+# and optionally serves it via a temporary HTTP server.
 #
 # Usage:
 #   acfs dashboard generate [--force]
+#   acfs dashboard serve [--port PORT]
 # ============================================================
 
 set -euo pipefail
@@ -17,7 +19,8 @@ dashboard_usage() {
     echo ""
     echo "Commands:"
     echo "  generate [--force]   Generate ~/.acfs/dashboard/index.html"
-    echo "  help                Show this help"
+    echo "  serve [--port PORT]  Start a temporary HTTP server for the dashboard"
+    echo "  help                 Show this help"
 }
 
 find_info_script() {
@@ -99,6 +102,100 @@ dashboard_generate() {
     echo "Open with: open \"$html_file\" (macOS) or xdg-open \"$html_file\" (Linux)"
 }
 
+dashboard_serve() {
+    local port=8080
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --port)
+                if [[ -n "${2:-}" ]]; then
+                    port="$2"
+                    shift
+                else
+                    echo "Error: --port requires a port number" >&2
+                    return 1
+                fi
+                ;;
+            --help|-h)
+                echo "Usage: acfs dashboard serve [--port PORT]"
+                echo ""
+                echo "Starts a temporary HTTP server to view the dashboard."
+                echo "Default port: 8080"
+                return 0
+                ;;
+            *)
+                # Allow port as positional argument
+                if [[ "$1" =~ ^[0-9]+$ ]]; then
+                    port="$1"
+                else
+                    echo "Unknown option: $1" >&2
+                    return 1
+                fi
+                ;;
+        esac
+        shift
+    done
+
+    local dashboard_dir="${ACFS_HOME}/dashboard"
+    local html_file="${dashboard_dir}/index.html"
+
+    # Auto-generate dashboard if missing
+    if [[ ! -f "$html_file" ]]; then
+        echo "Dashboard not found. Generating..."
+        dashboard_generate --force
+    fi
+
+    # Get IP for display
+    local ip
+    if command -v hostname &>/dev/null; then
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}') || ip="<your-server-ip>"
+    else
+        ip="<your-server-ip>"
+    fi
+    # Fallback if hostname -I returned empty
+    [[ -z "$ip" ]] && ip="<your-server-ip>"
+
+    # Check if port is in use
+    if command -v lsof &>/dev/null && lsof -i :"$port" &>/dev/null; then
+        echo "Warning: Port $port appears to be in use." >&2
+        echo "Try a different port: acfs dashboard serve --port 8081" >&2
+        return 1
+    fi
+
+    # Show banner
+    cat <<EOF
+
+╭─────────────────────────────────────────────────────────────╮
+│  📊 ACFS Dashboard Server                                   │
+├─────────────────────────────────────────────────────────────┤
+│  Local URL:   http://localhost:${port}                         │
+│  Network URL: http://${ip}:${port}
+│                                                             │
+│  Press Ctrl+C to stop                                       │
+│                                                             │
+│  ⚠️  This is a temporary server.                            │
+│  It stops when you close this terminal.                     │
+╰─────────────────────────────────────────────────────────────╯
+
+EOF
+
+    # Start server
+    cd "$dashboard_dir" || {
+        echo "Error: Cannot cd to $dashboard_dir" >&2
+        return 1
+    }
+
+    if command -v python3 &>/dev/null; then
+        python3 -m http.server "$port"
+    elif command -v python &>/dev/null; then
+        python -m http.server "$port"
+    else
+        echo "Error: Python not found. Cannot start HTTP server." >&2
+        echo "Install Python or open the dashboard directly: $html_file" >&2
+        return 1
+    fi
+}
+
 dashboard_main() {
     local cmd="${1:-help}"
     shift 2>/dev/null || true
@@ -106,6 +203,9 @@ dashboard_main() {
     case "$cmd" in
         generate)
             dashboard_generate "$@"
+            ;;
+        serve)
+            dashboard_serve "$@"
             ;;
         help|-h|--help)
             dashboard_usage
