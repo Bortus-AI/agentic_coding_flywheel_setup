@@ -784,10 +784,11 @@ STATUS_SCRIPT
 
 # Setup complete resume infrastructure
 # This copies all necessary files and sets up systemd service
-# Usage: upgrade_setup_infrastructure <acfs_source_dir> [original_install_args]
+# Usage: upgrade_setup_infrastructure <acfs_source_dir> [original_install_args...]
 upgrade_setup_infrastructure() {
     local source_dir="$1"
-    local install_args="${2:-}"
+    shift
+    local install_args=("$@")
     local service_template="${source_dir}/scripts/templates/acfs-upgrade-resume.service"
 
     log_step "Setting up upgrade resume infrastructure..."
@@ -809,19 +810,42 @@ upgrade_setup_infrastructure() {
 
     # Copy upgrade resume script
     log_detail "Copying resume script..."
+    if [[ ! -f "${source_dir}/scripts/lib/upgrade_resume.sh" ]]; then
+        log_error "Upgrade resume script not found: ${source_dir}/scripts/lib/upgrade_resume.sh"
+        return 1
+    fi
     cp "${source_dir}/scripts/lib/upgrade_resume.sh" "${ACFS_RESUME_DIR}/"
     chmod +x "${ACFS_RESUME_DIR}/upgrade_resume.sh"
 
     # Copy current state file if exists
     local state_file
     state_file="$(state_get_file 2>/dev/null || echo "${HOME}/.acfs/state.json")"
-    if [[ -f "$state_file" ]]; then
-        cp "$state_file" "${ACFS_RESUME_DIR}/state.json"
+    local dest_state_file="${ACFS_RESUME_DIR}/state.json"
+    if [[ -f "$state_file" ]] && [[ "$state_file" != "$dest_state_file" ]]; then
+        cp "$state_file" "$dest_state_file"
     fi
 
     # Create continue_install.sh script
     # This runs after all upgrades complete to resume ACFS installation
     log_detail "Creating continuation script..."
+    local repo_owner repo_name repo_ref
+    repo_owner="${ACFS_REPO_OWNER:-Dicklesworthstone}"
+    repo_name="${ACFS_REPO_NAME:-agentic_coding_flywheel_setup}"
+    repo_ref="${ACFS_REF:-main}"
+    local source_dir_q repo_ref_q install_url install_url_q
+    source_dir_q=$(printf '%q' "$source_dir")
+    repo_ref_q=$(printf '%q' "$repo_ref")
+    install_url="https://raw.githubusercontent.com/${repo_owner}/${repo_name}/${repo_ref}/install.sh"
+    install_url_q=$(printf '%q' "$install_url")
+
+    local -a continue_args=("${install_args[@]}" "--skip-ubuntu-upgrade")
+    local rendered_args=""
+    local arg=""
+    for arg in "${continue_args[@]}"; do
+        rendered_args+=" $(printf '%q' "$arg")"
+    done
+    rendered_args="${rendered_args# }"
+
     cat > "${ACFS_RESUME_DIR}/continue_install.sh" << CONTINUE_SCRIPT
 #!/usr/bin/env bash
 # Auto-generated script to continue ACFS installation after Ubuntu upgrades
@@ -829,9 +853,20 @@ set -euo pipefail
 
 echo "Ubuntu upgrade complete. Resuming ACFS installation..."
 
-# Re-run the original install command
-cd "${source_dir}"
-./install.sh ${install_args} --skip-ubuntu-upgrade
+# Prefer local source dir (only if it still exists), else fetch from GitHub.
+SOURCE_DIR=${source_dir_q}
+export ACFS_REF=${repo_ref_q}
+INSTALL_URL=${install_url_q}
+
+INSTALL_ARGS=(${rendered_args})
+
+if [[ -f "\${SOURCE_DIR}/install.sh" ]]; then
+    echo "Using local installer: \${SOURCE_DIR}/install.sh"
+    (cd "\${SOURCE_DIR}" && bash ./install.sh "\${INSTALL_ARGS[@]}")
+else
+    echo "Fetching installer: \${INSTALL_URL}"
+    curl -fsSL "\${INSTALL_URL}" | bash -s -- "\${INSTALL_ARGS[@]}"
+fi
 
 echo "ACFS installation complete!"
 CONTINUE_SCRIPT
@@ -906,10 +941,11 @@ upgrade_teardown_infrastructure() {
 
 # Start the complete upgrade process
 # This is the main entry point for initiating upgrades
-# Usage: ubuntu_start_upgrade_sequence <source_dir> [install_args]
+# Usage: ubuntu_start_upgrade_sequence <source_dir> [install_args...]
 ubuntu_start_upgrade_sequence() {
     local source_dir="$1"
-    local install_args="${2:-}"
+    shift
+    local install_args=("$@")
 
     # Get current and target versions
     local current_version
@@ -952,7 +988,7 @@ ubuntu_start_upgrade_sequence() {
     state_upgrade_init "$current_version" "$UBUNTU_TARGET_VERSION" "$path_json"
 
     # Setup infrastructure for resume after reboot
-    upgrade_setup_infrastructure "$source_dir" "$install_args"
+    upgrade_setup_infrastructure "$source_dir" "${install_args[@]}"
 
     # Update MOTD
     upgrade_update_motd "Starting upgrade: $current_version → $UBUNTU_TARGET_VERSION"
@@ -978,7 +1014,9 @@ ubuntu_start_upgrade_sequence() {
     # Copy updated state to resume location
     local state_file
     state_file="$(state_get_file)"
-    cp "$state_file" "${ACFS_RESUME_DIR}/state.json"
+    if [[ -f "$state_file" ]] && [[ "$state_file" != "${ACFS_RESUME_DIR}/state.json" ]]; then
+        cp "$state_file" "${ACFS_RESUME_DIR}/state.json"
+    fi
 
     # Update MOTD before reboot
     upgrade_update_motd "Rebooting for upgrade to $first_target..."

@@ -685,8 +685,10 @@ source_generated_installers() {
     local scripts=(
         "install_users.sh"
         "install_base.sh"
+        "install_filesystem.sh"
         "install_shell.sh"
         "install_cli.sh"
+        "install_network.sh"
         "install_lang.sh"
         "install_tools.sh"
         "install_agents.sh"
@@ -1408,6 +1410,12 @@ run_ubuntu_upgrade_phase() {
     current_version_num=$(ubuntu_get_version_number)
     log_detail "Current Ubuntu version: $current_version_str"
 
+    # Upgrade tracking state must survive reboots and cannot depend on the
+    # target user's home existing yet (user normalization runs later).
+    # Use a root-owned, persistent state file under the resume directory.
+    local upgrade_state_file="${ACFS_RESUME_DIR:-/var/lib/acfs}/state.json"
+    export ACFS_STATE_FILE="$upgrade_state_file"
+
     # Convert target version string to number for comparison
     # TARGET_UBUNTU_VERSION is "25.10", need 2510
     local target_version_num
@@ -1477,36 +1485,43 @@ run_ubuntu_upgrade_phase() {
         fi
     fi
 
+    # Ensure a state file exists so upgrade tracking can persist progress.
+    # (The main install resume prompt/state init happens later, but upgrades
+    # need state_update/state_upgrade_* to be able to write immediately.)
+    if type -t state_ensure_valid &>/dev/null; then
+        if ! state_ensure_valid; then
+            log_error "State validation failed. Aborting Ubuntu upgrade."
+            return 1
+        fi
+    fi
+    if type -t state_load &>/dev/null && type -t state_init &>/dev/null; then
+        if ! state_load >/dev/null 2>&1; then
+            log_detail "Initializing state file for Ubuntu upgrade tracking..."
+            if ! state_init; then
+                log_error "Failed to initialize state file. Aborting Ubuntu upgrade."
+                return 1
+            fi
+        fi
+    fi
+
     # Start the upgrade sequence
     # This will trigger reboots and the resume service will continue
     log_info "Starting Ubuntu upgrade sequence..."
 
     if type -t ubuntu_start_upgrade_sequence &>/dev/null; then
-        # Pass the script directory for resume infrastructure setup
-        local acfs_source_dir="${SCRIPT_DIR:-}"
-        if [[ -z "$acfs_source_dir" ]]; then
-            # curl|bash scenario - we need to tell the resume script where to get libs
-            acfs_source_dir="DOWNLOAD"
+        # Provide a source directory so we can copy upgrade-resume assets.
+        # Local checkout: SCRIPT_DIR is set.
+        # curl|bash: bootstrap_repo_archive prepared ACFS_BOOTSTRAP_DIR.
+        local acfs_source_dir=""
+        if [[ -n "${SCRIPT_DIR:-}" ]] && [[ -d "$SCRIPT_DIR" ]]; then
+            acfs_source_dir="$SCRIPT_DIR"
+        elif [[ -n "${ACFS_BOOTSTRAP_DIR:-}" ]] && [[ -d "$ACFS_BOOTSTRAP_DIR" ]]; then
+            acfs_source_dir="$ACFS_BOOTSTRAP_DIR"
+        else
+            acfs_source_dir="."
         fi
 
-        # Build arguments for resume after final reboot
-        # Note: $* would be empty here (function called with no args)
-        # We reconstruct from the parsed global flags
-        local original_args=""
-        if [[ "$YES_MODE" == "true" ]]; then
-            original_args="--yes"
-        fi
-        if [[ "$MODE" == "vibe" ]]; then
-            original_args="$original_args --mode vibe"
-        fi
-        # Pass through target version for consistency
-        if [[ "$TARGET_UBUNTU_VERSION" != "25.10" ]]; then
-            original_args="$original_args --target-ubuntu=$TARGET_UBUNTU_VERSION"
-        fi
-        # Trim leading/trailing whitespace
-        original_args="${original_args# }"
-
-        if ! ubuntu_start_upgrade_sequence "$acfs_source_dir" "$original_args"; then
+        if ! ubuntu_start_upgrade_sequence "$acfs_source_dir" "$@"; then
             log_error "Ubuntu upgrade failed to start"
             return 1
         fi
@@ -1555,7 +1570,7 @@ ensure_base_deps() {
 # Phase 1: User normalization
 # ============================================================
 normalize_user() {
-    set_phase "normalize_user" "User Normalization" 2
+    set_phase "user_setup" "User Normalization"
     log_step "1/9" "Normalizing user account..."
 
     if [[ $EUID -eq 0 ]] && type -t prompt_ssh_key &>/dev/null; then
@@ -1611,7 +1626,7 @@ normalize_user() {
 # Phase 2: Filesystem setup
 # ============================================================
 setup_filesystem() {
-    set_phase "setup_filesystem" "Filesystem Setup" 3
+    set_phase "filesystem" "Filesystem Setup"
     log_step "2/9" "Setting up filesystem..."
 
     if acfs_use_generated_category "filesystem"; then
@@ -1654,7 +1669,7 @@ setup_filesystem() {
 # Phase 3: Shell setup (zsh + oh-my-zsh + p10k)
 # ============================================================
 setup_shell() {
-    set_phase "setup_shell" "Shell Setup" 4
+    set_phase "shell_setup" "Shell Setup"
     log_step "3/9" "Setting up shell..."
 
     if acfs_use_generated_category "shell"; then
@@ -1795,7 +1810,7 @@ install_github_cli() {
 }
 
 install_cli_tools() {
-    set_phase "install_cli_tools" "CLI Tools" 5
+    set_phase "cli_tools" "CLI Tools"
     log_step "4/9" "Installing CLI tools..."
 
     local used_generated_cli=false
@@ -2001,7 +2016,7 @@ install_languages_legacy_tools() {
 }
 
 install_languages() {
-    set_phase "install_languages" "Language Runtimes" 6
+    set_phase "languages" "Language Runtimes"
     log_step "5/9" "Installing language runtimes..."
 
     local ran_any=false
@@ -2035,7 +2050,7 @@ install_languages() {
 # Phase 6: Coding agents
 # ============================================================
 install_agents() {
-    set_phase "install_agents" "Coding Agents" 7
+    set_phase "agents" "Coding Agents"
     log_step "6/9" "Installing coding agents..."
 
     if acfs_use_generated_category "agents"; then
@@ -2185,7 +2200,7 @@ install_cloud_db_legacy_cloud() {
 }
 
 install_cloud_db() {
-    set_phase "install_cloud_db" "Cloud & Database Tools" 8
+    set_phase "cloud_db" "Cloud & Database Tools"
     log_step "7/9" "Installing cloud & database tools..."
 
     local codename="noble"
@@ -2245,7 +2260,7 @@ binary_installed() {
 }
 
 install_stack() {
-    set_phase "install_stack" "Dicklesworthstone Stack" 9
+    set_phase "stack" "Dicklesworthstone Stack"
     log_step "8/9" "Installing Dicklesworthstone stack..."
 
     if acfs_use_generated_category "stack"; then
@@ -2326,7 +2341,7 @@ install_stack() {
 # Phase 9: Final wiring
 # ============================================================
 finalize() {
-    set_phase "finalize" "Final Wiring" 10
+    set_phase "finalize" "Final Wiring"
     log_step "9/9" "Finalizing installation..."
 
     if acfs_use_generated_category "acfs"; then
