@@ -1,4 +1,4 @@
-# checksums.yaml - Auto-generated 2025-12-22T21:27:25+00:00
+# checksums.yaml - Auto-generated 2025-12-22T22:06:26+00:00
 # Run: ./scripts/lib/security.sh --update-checksums
 
 installers:
@@ -28,7 +28,7 @@ installers:
 
   uv:
     url: "https://astral.sh/uv/install.sh"
-    sha256: "e27424708d1ac59cfc94e3f540a111f2edbb37bc8164febce8ee7fa5d5505c71"
+    sha256: "FETCH_FAILED"
 
   ntm:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/ntm/main/install.sh"
@@ -45,6 +45,10 @@ installers:
   ubs:
     url: "https://raw.githubusercontent.com/Dicklesworthstone/ultimate_bug_scanner/master/install.sh"
     sha256: "0a2591c9a52ad003a4dcee8f3098af67b122b019a68eb3f03f37cd8021675198"
+
+  slb:
+    url: "https://raw.githubusercontent.com/Dicklesworthstone/simultaneous_launch_button/main/scripts/install.sh"
+    sha256: "bc278b4b234e3f85c9dc4def16336f420d5823fabba48aec26c4f72685dba191"
 
   nvm:
     url: "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh"
