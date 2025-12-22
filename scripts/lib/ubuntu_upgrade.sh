@@ -19,16 +19,15 @@ export ACFS_RESUME_DIR="/var/lib/acfs"
 # Lock file location
 export ACFS_UPGRADE_LOCK="/var/run/acfs-upgrade.lock"
 
-# Fallback logging if logging.sh not sourced
-if ! declare -f log_fatal &>/dev/null; then
-    log_fatal() { echo "FATAL: $1" >&2; exit 1; }
-    log_detail() { echo "  $1" >&2; }
-    log_warn() { echo "WARN: $1" >&2; }
-    log_error() { echo "ERROR: $1" >&2; }
-    log_success() { echo "OK: $1" >&2; }
-    log_step() { echo "[*] $1" >&2; }
-    log_section() { echo ""; echo "=== $1 ===" >&2; }
-fi
+# Fallback logging if not already defined (check each individually)
+declare -f log_fatal &>/dev/null || log_fatal() { echo "FATAL: $1" >&2; exit 1; }
+declare -f log_detail &>/dev/null || log_detail() { echo "  $1" >&2; }
+declare -f log_warn &>/dev/null || log_warn() { echo "WARN: $1" >&2; }
+declare -f log_error &>/dev/null || log_error() { echo "ERROR: $1" >&2; }
+declare -f log_success &>/dev/null || log_success() { echo "OK: $1" >&2; }
+declare -f log_step &>/dev/null || log_step() { echo "[*] $1" >&2; }
+declare -f log_section &>/dev/null || log_section() { echo ""; echo "=== $1 ===" >&2; }
+declare -f log_info &>/dev/null || log_info() { log_detail "$1"; }
 
 # ============================================================
 # Version Detection Functions
@@ -467,13 +466,21 @@ ubuntu_do_upgrade() {
         return 1
     fi
 
+    # Validate detected version is reasonable
     if [[ -n "$expected_next_version" ]] && [[ "$next_version" != "$expected_next_version" ]]; then
-        log_error "Unexpected upgrade target detected"
-        log_error "  Expected: $expected_next_version"
-        log_error "  Detected:  $next_version"
-        log_error "This is usually caused by LTS-only upgrade settings (Prompt=lts)."
-        log_error "Fix: set Prompt=normal in /etc/update-manager/release-upgrades and retry."
-        return 1
+        # Convert versions to comparable numbers (24.10 -> 2410)
+        local expected_num detected_num
+        expected_num="${expected_next_version//./}"
+        detected_num="${next_version//./}"
+
+        if [[ "$detected_num" -gt "$expected_num" ]]; then
+            # Skipping an EOL release (e.g., 24.10 EOL, jumping to 25.04) - OK
+            log_warn "Skipping EOL release: expected $expected_next_version, upgrading to $next_version"
+        elif [[ "$detected_num" -lt "$expected_num" ]]; then
+            # Going backwards - not OK
+            log_error "Unexpected downgrade target: $next_version (expected $expected_next_version)"
+            return 1
+        fi
     fi
 
     log_section "Upgrading Ubuntu to $next_version"

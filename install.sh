@@ -435,6 +435,16 @@ log_fatal() {
     exit 1
 }
 
+log_section() {
+    if [[ "$HAS_GUM" == "true" ]]; then
+        echo "" >&2
+        gum style --foreground "$ACFS_PRIMARY" --bold "═══ $1 ═══" >&2
+    else
+        echo "" >&2
+        echo -e "${BLUE}═══ $1 ═══${NC}" >&2
+    fi
+}
+
 # ============================================================
 # Error handling
 # ============================================================
