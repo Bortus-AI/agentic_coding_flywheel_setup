@@ -1673,6 +1673,42 @@ run_ubuntu_upgrade_phase() {
                     log_info "Please reboot manually and re-run the installer."
                     return 1
                 fi
+
+                # IMPORTANT: For pre_upgrade_reboot, we need to continue WITH Ubuntu upgrade
+                # The default continue script has --skip-ubuntu-upgrade, so override it
+                local continue_script="${ACFS_RESUME_DIR:-/var/lib/acfs}/continue_install.sh"
+                if [[ -f "$continue_script" ]]; then
+                    # Build args without --skip-ubuntu-upgrade
+                    local repo_owner repo_name repo_ref install_url
+                    repo_owner="${ACFS_REPO_OWNER:-Dicklesworthstone}"
+                    repo_name="${ACFS_REPO_NAME:-agentic_coding_flywheel_setup}"
+                    repo_ref="${ACFS_REF:-main}"
+                    install_url="https://raw.githubusercontent.com/${repo_owner}/${repo_name}/${repo_ref}/install.sh"
+
+                    # Collect original args, ensuring we have core flags
+                    local -a continue_args=()
+                    [[ "$YES_MODE" == "true" ]] && continue_args+=(--yes)
+                    [[ -n "${INSTALL_MODE:-}" ]] && continue_args+=(--mode "$INSTALL_MODE")
+
+                    cat > "$continue_script" << CONTINUE_SCRIPT
+#!/usr/bin/env bash
+# Continue ACFS installation after pre-upgrade reboot (kernel updates applied)
+set -euo pipefail
+
+echo "Pre-upgrade reboot complete. Continuing with ACFS installation..."
+
+# Fetch and run installer (will proceed with Ubuntu upgrade if needed)
+export ACFS_REF=${repo_ref}
+INSTALL_URL="${install_url}"
+INSTALL_ARGS=(${continue_args[*]:-})
+
+echo "Fetching installer: \${INSTALL_URL}"
+curl -fsSL "\${INSTALL_URL}" | bash -s -- "\${INSTALL_ARGS[@]}"
+
+echo "ACFS installation complete!"
+CONTINUE_SCRIPT
+                    chmod +x "$continue_script"
+                fi
             else
                 log_warn "Resume infrastructure not available. After reboot, re-run installer manually."
             fi
