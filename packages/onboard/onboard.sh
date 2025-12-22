@@ -972,6 +972,27 @@ main_menu() {
 
 # Handle command line arguments
 case "${1:-}" in
+    --cheatsheet|cheatsheet)
+        shift || true
+        cheatsheet_script=""
+        for candidate in \
+            "$HOME/.acfs/scripts/lib/cheatsheet.sh" \
+            "$SCRIPT_DIR/../../scripts/lib/cheatsheet.sh" \
+            "$SCRIPT_DIR/../scripts/lib/cheatsheet.sh"; do
+            if [[ -f "$candidate" ]]; then
+                cheatsheet_script="$candidate"
+                break
+            fi
+        done
+
+        if [[ -z "${cheatsheet_script:-}" ]]; then
+            echo "Error: cheatsheet.sh not found" >&2
+            echo "Re-run the ACFS installer or update to get the latest scripts." >&2
+            exit 1
+        fi
+
+        exec bash "$cheatsheet_script" "$@"
+        ;;
     reset)
         init_progress
         reset_progress
@@ -992,6 +1013,7 @@ Usage:
   onboard N         Jump to lesson N (1-9)
   onboard reset     Reset all progress
   onboard status    Show completion status
+  onboard --cheatsheet [query]  Show ACFS command cheatsheet
   onboard --help    Show this help
 
 Lessons:
