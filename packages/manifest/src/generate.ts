@@ -415,7 +415,7 @@ function generateVerifiedInstallerSnippet(module: Module): string[] {
       '        local url="${KNOWN_INSTALLERS[$tool]:-}"',
       '        if [[ -n "$url" ]]; then',
       argsStr
-        ? `            install_cmd="curl -fsSL '\\$url' | bash -s -- ${argsStr}"`
+        ? `            install_cmd="curl -fsSL '$url' | bash -s -- ${argsStr}"`
         : '            install_cmd="curl -fsSL \'$url\' | bash"',
       '        fi',
       '    fi',

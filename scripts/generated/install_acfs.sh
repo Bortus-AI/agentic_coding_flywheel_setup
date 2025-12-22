@@ -147,8 +147,8 @@ INSTALL_ACFS_WORKSPACE
     else
         if ! run_as_target_shell <<'INSTALL_ACFS_WORKSPACE'
 # Add agents alias to zshrc.local if not already present
-if [[ ! -f ~/.zshrc.local ]] || ! grep -q "^alias agents=" ~/.zshrc.local; then
-  mkdir -p ~/.zshrc.local.d 2>/dev/null || true
+if [[ ! -f ~/.zshrc.local ]] || ! grep -q "alias agents=" ~/.zshrc.local; then
+  touch ~/.zshrc.local 2>/dev/null || true
   echo '' >> ~/.zshrc.local
   echo '# ACFS agents workspace alias' >> ~/.zshrc.local
   echo 'alias agents="tmux attach -t agents 2>/dev/null || tmux new-session -s agents -c /data/projects"' >> ~/.zshrc.local

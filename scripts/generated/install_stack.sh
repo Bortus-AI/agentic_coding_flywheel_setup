@@ -140,7 +140,7 @@ install_stack_mcp_agent_mail() {
                     local tool="mcp_agent_mail"
                     local url="${KNOWN_INSTALLERS[$tool]:-}"
                     if [[ -n "$url" ]]; then
-                        install_cmd="curl -fsSL '\$url' | bash -s -- '--dir' '/home/ubuntu/mcp_agent_mail' '--yes'"
+                        install_cmd="curl -fsSL '$url' | bash -s -- '--dir' '/home/ubuntu/mcp_agent_mail' '--yes'"
                     fi
                 fi
             fi
