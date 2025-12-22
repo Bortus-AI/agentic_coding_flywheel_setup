@@ -25,7 +25,10 @@
 
 # Prevent multiple sourcing
 if [[ -n "${_ACFS_INFO_SH_LOADED:-}" ]]; then
-    return 0 2>/dev/null || exit 0
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+        return 0
+    fi
+    exit 0
 fi
 _ACFS_INFO_SH_LOADED=1
 
@@ -40,20 +43,14 @@ if [[ -t 1 ]]; then
     C_BOLD='\033[1m'
     C_DIM='\033[2m'
     C_GREEN='\033[0;32m'
-    C_YELLOW='\033[0;33m'
-    C_BLUE='\033[0;34m'
     C_CYAN='\033[0;36m'
-    C_MAGENTA='\033[0;35m'
     C_GRAY='\033[0;90m'
 else
     C_RESET=''
     C_BOLD=''
     C_DIM=''
     C_GREEN=''
-    C_YELLOW=''
-    C_BLUE=''
     C_CYAN=''
-    C_MAGENTA=''
     C_GRAY=''
 fi
 
@@ -65,6 +62,15 @@ fi
 #   - Never make network calls
 #   - Return fallback value on error
 
+# Get file modified time (unix epoch seconds)
+info_get_file_mtime() {
+    local path="$1"
+    local mtime=""
+    mtime="$(stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null || echo "")"
+    [[ "$mtime" =~ ^[0-9]+$ ]] || return 1
+    echo "$mtime"
+}
+
 # Get system hostname
 info_get_hostname() {
     cat /etc/hostname 2>/dev/null || hostname 2>/dev/null || echo "unknown"
@@ -74,9 +80,15 @@ info_get_hostname() {
 info_get_ip() {
     # Try cached value first
     local cache_file="${ACFS_HOME}/cache/ip_address"
-    if [[ -f "$cache_file" ]] && [[ $(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null) -gt $(($(date +%s) - 3600)) ]]; then
-        cat "$cache_file"
-        return
+    local now
+    now="$(date +%s 2>/dev/null || echo "")"
+
+    if [[ -f "$cache_file" ]] && [[ "$now" =~ ^[0-9]+$ ]]; then
+        local cache_mtime
+        if cache_mtime="$(info_get_file_mtime "$cache_file")" && [[ $cache_mtime -gt $((now - 3600)) ]]; then
+            cat "$cache_file"
+            return 0
+        fi
     fi
 
     # Get live value
