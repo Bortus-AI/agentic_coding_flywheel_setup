@@ -196,6 +196,23 @@ export default function StatusCheckPage() {
           </div>
         </AlertCard>
 
+        <AlertCard variant="success" icon={Bot} title="You don't need to log into everything right now">
+          <div className="space-y-2 text-sm">
+            <p className="text-muted-foreground">
+              Most people start with <strong className="text-foreground">one</strong> coding agent and add
+              the rest later.
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li><strong>Recommended now:</strong> Claude Code</li>
+              <li><strong>Optional now:</strong> Codex, Gemini (only if you plan to use them)</li>
+              <li><strong>Later:</strong> Cloud tools (Wrangler / Supabase / Vercel), GitHub CLI, etc.</li>
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              If you skip a login, the tool is still installed — it just won&apos;t work until you authenticate.
+            </p>
+          </div>
+        </AlertCard>
+
         {/* Auth commands grouped by category */}
         {(["access", "agent", "cloud"] as const).map((category) => {
           const services = authServices[category];
