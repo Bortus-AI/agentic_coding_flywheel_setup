@@ -365,7 +365,7 @@ export default function SSHConnectPage() {
           <GuideSection title="Step-by-Step Connection Guide">
             <div className="space-y-4">
               <GuideStep number={1} title="Open your terminal">
-                Open the terminal app you installed earlier (Ghostty, WezTerm, or Windows Terminal).
+                Open your terminal app (Ghostty, WezTerm, Windows Terminal, or your Linux terminal emulator).
               </GuideStep>
 
               <GuideStep number={2} title="Copy the SSH command">
@@ -377,6 +377,7 @@ export default function SSHConnectPage() {
                 Click inside your terminal window, then paste:
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   <li><strong>Mac:</strong> <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">⌘</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">V</kbd></li>
+                  <li><strong>Linux:</strong> <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Shift</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">V</kbd></li>
                   <li><strong>Windows:</strong> Right-click inside the terminal, or <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">V</kbd></li>
                 </ul>
               </GuideStep>

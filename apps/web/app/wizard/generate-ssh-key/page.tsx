@@ -92,9 +92,11 @@ export default function GenerateSSHKeyPage() {
         </p>
         <ul className="space-y-1 text-sm">
           <li>
-            <strong className="text-foreground">On {os === "mac" ? "Mac" : "Windows"}:</strong>{" "}
+            <strong className="text-foreground">On {os === "mac" ? "Mac" : os === "linux" ? "Linux" : "Windows"}:</strong>{" "}
             {os === "mac" ? (
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/Users/yourname/.ssh/</code>
+            ) : os === "linux" ? (
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/home/yourname/.ssh/</code>
             ) : (
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">C:\\Users\\yourname\\.ssh\\</code>
             )}
@@ -237,6 +239,12 @@ export default function GenerateSSHKeyPage() {
                     You can press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">⌘</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Space</kbd>,
                     type the name, and press Enter.
                   </>
+                ) : os === "linux" ? (
+                  <>
+                    Open your terminal emulator. On most Linux distributions,
+                    press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Alt</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">T</kbd>,
+                    or find Terminal in your applications menu.
+                  </>
                 ) : (
                   <>
                     Open Windows Terminal. Click Start, type &quot;Terminal&quot;,
@@ -256,6 +264,7 @@ export default function GenerateSSHKeyPage() {
                 Then paste the command:
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   <li><strong>Mac:</strong> Press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">⌘</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">V</kbd></li>
+                  <li><strong>Linux:</strong> Press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Shift</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">V</kbd></li>
                   <li><strong>Windows:</strong> Right-click inside the terminal OR press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">V</kbd></li>
                 </ul>
                 <p className="mt-2">Then press <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Enter</kbd> to run it.</p>
@@ -392,12 +401,13 @@ export default function GenerateSSHKeyPage() {
                 <strong>To copy it:</strong>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   <li><strong>Mac:</strong> Triple-click to select the whole line, then <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">⌘</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">C</kbd></li>
+                  <li><strong>Linux:</strong> Triple-click to select the whole line, then <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">Shift</kbd> + <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">C</kbd></li>
                   <li><strong>Windows:</strong> Triple-click to select, then right-click to copy</li>
                 </ul>
               </GuideStep>
 
               <GuideStep number={3} title="Save it somewhere safe">
-                Open a notes app (like Notes on Mac, or Notepad on Windows) and paste your
+                Open a notes app (like Notes on Mac, Notepad on Windows, or any text editor on Linux) and paste your
                 public key there. You&apos;ll need it later when running the installer (not
                 when creating the VPS—we&apos;ll use a password for that).
               </GuideStep>

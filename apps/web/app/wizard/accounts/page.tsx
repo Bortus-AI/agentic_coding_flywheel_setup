@@ -431,7 +431,7 @@ export default function AccountsPage() {
 
           <GuideTip>
             <strong>Pro tip:</strong> Open each signup link in a new tab
-            (Cmd+click on Mac, Ctrl+click on Windows). That way you can create
+            (Cmd+click on Mac, Ctrl+click on Linux/Windows). That way you can create
             multiple accounts quickly without losing your place here.
           </GuideTip>
 

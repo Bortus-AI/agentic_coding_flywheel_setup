@@ -268,7 +268,7 @@ export default function OSSelectionPage() {
               </>
             ) : (
               <>
-                If you&apos;re reading this on your phone, choose the computer you&apos;ll use next (Mac or Windows),
+                If you&apos;re reading this on your phone, choose the computer you&apos;ll use next,
                 then click &quot;Continue&quot;.
               </>
             )}
