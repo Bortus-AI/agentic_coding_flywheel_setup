@@ -609,6 +609,23 @@ test_generated_per_category_override() {
     test_fail "$name"
 }
 
+test_generated_env_var_csv_override() {
+    local name="ACFS_GENERATED_MIGRATED_CATEGORIES env var overrides defaults"
+    reset_generated_flags
+    ACFS_GENERATED_DEFAULT_CATEGORIES=("shell")
+    ACFS_GENERATED_MIGRATED_CATEGORIES="base,lang"
+
+    # Shell should NOT be migrated (env var overrides code default)
+    # Base and Lang SHOULD be migrated
+    if ! acfs_use_generated_category "shell" 2>/dev/null && \
+       acfs_use_generated_category "base" 2>/dev/null && \
+       acfs_use_generated_category "lang" 2>/dev/null; then
+        test_pass "$name"
+        return
+    fi
+    test_fail "$name"
+}
+
 # ============================================================
 # Run Tests
 # ============================================================
